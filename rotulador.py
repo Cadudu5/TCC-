@@ -11,8 +11,8 @@ from skimage.feature import graycomatrix, graycoprops
 from tqdm import tqdm # Importa a barra de progresso
 
 # --- CONFIGURAÇÕES ---
-IMAGE_PATH = 'imagem5.tif' 
-OUTPUT_CSV = 'dataset_final_imagem5.csv'
+IMAGE_PATH = 'imagem6.tif' 
+OUTPUT_CSV = 'dataset_final_imagem6.csv'
 N_SEGMENTS = 5000
 COMPACTNESS = 10
 SIGMA = 3
