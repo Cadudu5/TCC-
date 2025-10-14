@@ -1,17 +1,29 @@
 import pandas as pd
 import numpy as np
 import os
+import json
+import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix, f1_score
+from sklearn.metrics import (
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    accuracy_score,
+)
+
 
 # --- CONFIGURAÇÕES ---
-DATASET_PATH = '../dataset_completo.csv'
+# dataset_completo 
+# dataset_completo_sem_sd
+DATASET_PATH = '../dataset_balanceado.csv'
 
 # Parâmetros do Modelo Random Forest
 N_ESTIMATORS = 100
 RANDOM_STATE = 42 # Para reprodutibilidade
-CLASS_WEIGHT = 'balanced' # Essencial para dados desbalanceados
+CLASS_WEIGHT = 'balanced' # Essencial para dados balanceados
 
 def run_training_experiments():
     """
@@ -58,6 +70,14 @@ def run_training_experiments():
 
     # Dicionário para armazenar os resultados para comparação final
     resultados_finais = {}
+    # Lista para montar a tabela de métricas por experimento
+    tabela_metricas = []
+
+    # Controle do melhor modelo ao longo dos experimentos
+    melhor_f1 = -1.0
+    melhor_modelo = None
+    melhor_features = []
+    melhor_nome_exp = ""
 
     # --- 4. Loop Experimental ---
     for nome_exp, features_exp in experimentos.items():
@@ -90,11 +110,41 @@ def run_training_experiments():
         print("Matriz de Confusão:")
         print(confusion_matrix(y_test, y_pred))
 
+        # Calcula métricas agregadas
+        precision_ponderado = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+        recall_ponderado = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+        f1_ponderado = f1_score(y_test, y_pred, average='weighted', zero_division=0)
+        acuracia = accuracy_score(y_test, y_pred)
+
+        # Armazena métricas na tabela
+        tabela_metricas.append({
+            'modelo': nome_exp,
+            'precision': precision_ponderado,
+            'recall': recall_ponderado,
+            'f1': f1_ponderado,
+            'accuracy': acuracia,
+        })
+
         # Armazena o F1-Score ponderado para o resumo final
-        f1_ponderado = f1_score(y_test, y_pred, average='weighted')
         resultados_finais[nome_exp] = f1_ponderado
 
-    # --- 5. Análise Final ---
+        # Atualiza o melhor modelo se este experimento superar o F1 atual
+        if f1_ponderado > melhor_f1:
+            melhor_f1 = f1_ponderado
+            melhor_modelo = modelo
+            melhor_features = list(features_exp)
+            melhor_nome_exp = nome_exp
+
+    # --- 5. Tabela de Métricas por Experimento ---
+    print("\n" + "#"*60)
+    print("        TABELA DE MÉTRICAS POR EXPERIMENTO")
+    print("#"*60)
+    print(f"{'Modelo':<40} | {'Precision':>9} | {'Recall':>7} | {'F1':>5} | {'Acurácia':>9}")
+    print("-"*86)
+    for r in tabela_metricas:
+        print(f"{r['modelo']:<40} | {r['precision']:>9.4f} | {r['recall']:>7.4f} | {r['f1']:>5.4f} | {r['accuracy']:>9.4f}")
+
+    # --- 6. Análise Final ---
     print("\n" + "#"*60)
     print("        RESUMO FINAL DOS EXPERIMENTOS (F1-Score)")
     print("#"*60)
@@ -107,6 +157,44 @@ def run_training_experiments():
     for nome, score in resultados_ordenados:
         print(f"{nome:<40} | {score:<20.4f}")
     print("-"*60)
+
+    # --- 7. Salvamento do melhor modelo e metadados ---
+    if melhor_modelo is not None:
+        print("\nSalvando o melhor modelo e metadados...")
+        # Garante que salvaremos sempre em uma pasta 'artifacts' ao lado deste script
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        artifacts_dir = os.path.join(base_dir, 'artifacts')
+        os.makedirs(artifacts_dir, exist_ok=True)
+
+        model_path = os.path.join(artifacts_dir, 'rf_best.joblib')
+        meta_path = os.path.join(artifacts_dir, 'rf_best_meta.json')
+
+        joblib.dump(melhor_modelo, model_path)
+
+        # Parâmetros SLIC usados no pipeline de rotulagem (README)
+        slic_params = {
+            "n_segments": 5000,
+            "compactness": 10,
+            "sigma": 3,
+        }
+
+        meta = {
+            "best_experiment": melhor_nome_exp,
+            "feature_names": melhor_features,
+            "model_params": {
+                "n_estimators": N_ESTIMATORS,
+                "class_weight": CLASS_WEIGHT,
+                "random_state": RANDOM_STATE,
+            },
+            "slic": slic_params,
+        }
+
+        with open(meta_path, 'w', encoding='utf-8') as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+
+        print(f"Melhor experimento: {melhor_nome_exp} | F1={melhor_f1:.4f}")
+        print(f"Modelo salvo em: {model_path}")
+        print(f"Metadados salvos em: {meta_path}")
 
 
 if __name__ == '__main__':

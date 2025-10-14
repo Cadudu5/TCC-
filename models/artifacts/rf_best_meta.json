@@ -1,0 +1,18 @@
+{
+  "best_experiment": "3. Apenas LAB",
+  "feature_names": [
+    "lab_mean_ch1",
+    "lab_mean_ch2",
+    "lab_mean_ch3"
+  ],
+  "model_params": {
+    "n_estimators": 100,
+    "class_weight": "balanced",
+    "random_state": 42
+  },
+  "slic": {
+    "n_segments": 5000,
+    "compactness": 10,
+    "sigma": 3
+  }
+}

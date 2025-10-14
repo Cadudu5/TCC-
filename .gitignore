@@ -1,4 +1,47 @@
+# Ambiente virtual
 venv/
+env/
+.env/
+
+# Arquivos de dados e imagens
 *.png
 *.tif
 *.csv
+*.xlsx
+*.npy
+*.jpg
+*.jpeg
+
+# Arquivos Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribuição / empacotamento
+build/
+dist/
+*.egg-info/
+*.egg
+*.spec
+*.manifest
+*.toc
+
+# IDEs e editores
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# Outros
+*.zip
+*.exe
+*.log
+.env
+*.exe

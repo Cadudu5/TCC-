@@ -114,7 +114,7 @@ class SuperpixelLabeler:
 
     def setup_plot(self):
         self.ax.clear()
-        self.ax.imshow(mark_boundaries(self.original_image, self.superpixels))
+        self.ax.imshow(mark_boundaries(self.original_image, self.superpixels, color=(0, 0, 0)))
         self.ax.imshow(self.color_mask)
         self.ax.set_title("Rotulador de Superpixels\n"
                           "Clique Esquerdo: POSITIVO | Clique Direito: NEGATIVO\n"
