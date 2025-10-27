@@ -87,7 +87,10 @@ def extract_features(image_rgb: np.ndarray, labels_slic: np.ndarray) -> pd.DataF
     - GLCM (contrast, dissimilarity, homogeneity, correlation) da região em escala de cinza
 
     Retorna DataFrame com uma linha por superpixel e colunas:
-    'superpixel_id', rgb_mean_ch1..3, hsv_mean_ch1..3, lab_mean_ch1..3,
+    'superpixel_id',
+    rgb_mean_ch1..3, rgb_std_ch1..3,
+    hsv_mean_ch1..3, hsv_std_ch1..3,
+    lab_mean_ch1..3, lab_std_ch1..3,
     glcm_contrast, glcm_dissimilarity, glcm_homogeneity, glcm_correlation
     """
     if labels_slic.shape[:2] != image_rgb.shape[:2]:
@@ -108,10 +111,18 @@ def extract_features(image_rgb: np.ndarray, labels_slic: np.ndarray) -> pd.DataF
         if not np.any(mask):
             continue
 
-        # Médias de cor
-        rgb_means = img_rgb_f[mask].mean(axis=0)
-        hsv_means = img_hsv[mask].mean(axis=0)
-        lab_means = img_lab[mask].mean(axis=0)
+        # Médias e desvios padrão de cor
+        rgb_region = img_rgb_f[mask]
+        hsv_region = img_hsv[mask]
+        lab_region = img_lab[mask]
+
+        rgb_means = rgb_region.mean(axis=0)
+        hsv_means = hsv_region.mean(axis=0)
+        lab_means = lab_region.mean(axis=0)
+
+        rgb_stds = rgb_region.std(axis=0)
+        hsv_stds = hsv_region.std(axis=0)
+        lab_stds = lab_region.std(axis=0)
 
         # Recorte para textura (bbox da máscara)
         ys, xs = np.where(mask)
@@ -126,12 +137,21 @@ def extract_features(image_rgb: np.ndarray, labels_slic: np.ndarray) -> pd.DataF
             'rgb_mean_ch1': float(rgb_means[0]),
             'rgb_mean_ch2': float(rgb_means[1]),
             'rgb_mean_ch3': float(rgb_means[2]),
+            'rgb_std_ch1': float(rgb_stds[0]),
+            'rgb_std_ch2': float(rgb_stds[1]),
+            'rgb_std_ch3': float(rgb_stds[2]),
             'hsv_mean_ch1': float(hsv_means[0]),
             'hsv_mean_ch2': float(hsv_means[1]),
             'hsv_mean_ch3': float(hsv_means[2]),
+            'hsv_std_ch1': float(hsv_stds[0]),
+            'hsv_std_ch2': float(hsv_stds[1]),
+            'hsv_std_ch3': float(hsv_stds[2]),
             'lab_mean_ch1': float(lab_means[0]),
             'lab_mean_ch2': float(lab_means[1]),
             'lab_mean_ch3': float(lab_means[2]),
+            'lab_std_ch1': float(lab_stds[0]),
+            'lab_std_ch2': float(lab_stds[1]),
+            'lab_std_ch3': float(lab_stds[2]),
             **glcm_feats,
         }
         rows.append(row)

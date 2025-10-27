@@ -28,7 +28,11 @@ DEFAULT_MODEL_NAME = 'fundo_rf.joblib'
 DEFAULT_META_NAME = 'fundo_rf_meta.json'
 
 
-def load_fundo_dataset(data_dir: str) -> pd.DataFrame:
+def load_fundo_dataset(
+    data_dir: str,
+    color_means_only: bool = False,
+    include_glcm: bool = False,
+) -> tuple[pd.DataFrame, list]:
     """
     Carrega e concatena todos os CSVs enriquecidos de fundo (label 0/1) do diretório informado.
     Retorna um DataFrame único com features e coluna 'label'.
@@ -61,6 +65,19 @@ def load_fundo_dataset(data_dir: str) -> pd.DataFrame:
             drop_cols.append(c)
     feature_cols = [c for c in full.columns if c not in drop_cols + ['label']]
 
+    # Se solicitado, restringe às médias de cor (RGB/HSV/LAB) somente
+    if color_means_only:
+        desired = [
+            'rgb_mean_ch1','rgb_mean_ch2','rgb_mean_ch3',
+            'hsv_mean_ch1','hsv_mean_ch2','hsv_mean_ch3',
+            'lab_mean_ch1','lab_mean_ch2','lab_mean_ch3',
+        ]
+        if include_glcm:
+            desired += [
+                'glcm_contrast','glcm_dissimilarity','glcm_homogeneity','glcm_correlation'
+            ]
+        feature_cols = [c for c in desired if c in full.columns]
+
     # Mantém apenas colunas numéricas
     num_cols = [c for c in feature_cols if pd.api.types.is_numeric_dtype(full[c])]
     data = full[num_cols + ['label']].copy()
@@ -68,7 +85,7 @@ def load_fundo_dataset(data_dir: str) -> pd.DataFrame:
     if data.empty or data.shape[1] <= 1:
         raise ValueError("Conjunto de dados vazio ou sem features numéricas válidas.")
 
-    return data
+    return data, num_cols
 
 
 def train_random_forest(X: np.ndarray, y: np.ndarray, n_estimators: int, random_state: int = 42) -> RandomForestClassifier:
@@ -139,6 +156,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument('--test-size', type=float, default=0.2, help='Proporção para o conjunto de teste')
     p.add_argument('--cv-folds', type=int, default=0, help='Número de folds para validação cruzada (0 desabilita)')
     p.add_argument('--dry-run', action='store_true', help='Apenas carrega e imprime info do dataset, sem treinar')
+    p.add_argument('--color-means-only', action='store_true', default=True, help='Usar apenas médias de cor RGB/HSV/LAB (sem desvios)')
+    p.add_argument('--include-glcm', action='store_true', default=False, help='Quando combinado com --color-means-only, adiciona GLCM (contrast, dissimilarity, homogeneity, correlation)')
     return p.parse_args()
 
 
@@ -148,11 +167,15 @@ def main():
     print('--- Treinamento do Classificador de Fundo (Random Forest) ---')
     print(f"Dados: {os.path.abspath(args.data_dir)}")
 
-    data = load_fundo_dataset(args.data_dir)
-    print(f"Dataset carregado: {data.shape[0]} amostras, {data.shape[1]-1} features")
+    data, feature_cols = load_fundo_dataset(
+        args.data_dir,
+        color_means_only=args.color_means_only,
+        include_glcm=args.include_glcm,
+    )
+    print(f"Dataset carregado: {data.shape[0]} amostras, {len(feature_cols)} features")
 
-    X = data.drop(columns=['label']).values
-    y = data['label'].values.astype(int)
+    X = data.drop(columns=['label'])  # mantém DataFrame com nomes das colunas
+    y = data['label'].astype(int)
 
     if args.dry_run:
         classes, counts = np.unique(y, return_counts=True)
@@ -200,7 +223,7 @@ def main():
         'test_size': args.test_size,
         'metrics': metrics,
         'cv': cv_info,
-        'feature_names': list(data.drop(columns=['label']).columns),
+        'feature_names': list(feature_cols),
     }
 
     save_artifacts(model, meta, args.artifacts_dir, args.model_name, args.meta_name)

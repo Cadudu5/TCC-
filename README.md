@@ -90,6 +90,40 @@ python treinamento.py
 - Balanceamento: `CLASS_WEIGHT`
 - Reprodutibilidade: `RANDOM_STATE`
 
+## Treinamento do modelo de fundo (`models/treinamento_fundo_rf.py`)
+Classificador binário que identifica superpixels de fundo (1=fundo, 0=não-fundo). A GUI usa esse modelo no botão "Marcar fundo" para pintar o fundo em vermelho e, depois, ignorá-lo na classificação de neutrófilos.
+
+### Dados de entrada
+- Por padrão, lê os CSVs de `fundo_enriquecido/` (cada arquivo com colunas por superpixel e `label` 0/1).
+- Os parâmetros SLIC devem ser consistentes com os usados na extração das features.
+
+### Grupos de features suportados
+- Médias de cor (RGB/HSV/LAB)
+- Médias de cor + textura (GLCM: contrast, dissimilarity, homogeneity, correlation)
+
+### Como executar
+```bash
+# Apenas médias RGB/HSV/LAB (padrão)
+python models/treinamento_fundo_rf.py --color-means-only --n-estimators 300 --cv-folds 5
+
+# Médias + GLCM
+python models/treinamento_fundo_rf.py --color-means-only --include-glcm --n-estimators 300 --cv-folds 5
+
+# (Opcional) especificar diretório de dados
+python models/treinamento_fundo_rf.py --data-dir caminho/para/csvs --color-means-only --include-glcm
+```
+
+### Saída
+- Artefatos salvos em `models/artifacts/`:
+  - `fundo_rf.joblib`: modelo RandomForest ajustado
+  - `fundo_rf_meta.json`: metadados, incluindo a lista `feature_names` usada na inferência
+
+### Uso na GUI
+- Ao iniciar `apps/inferencia_gui.py`, clique em "Marcar fundo". A GUI:
+  - Extrai as mesmas features por superpixel
+  - Carrega `models/artifacts/fundo_rf.joblib` e usa somente as colunas listadas em `fundo_rf_meta.json`
+  - Pinta o fundo em vermelho e, em seguida, "Analisar imagem" ignora esses superpixels
+
 ## Executáveis (opcional)
 Na pasta `dist/` existem versões `.exe` do rotulador para Windows (`Rotulador.exe` e `Rotulador_lite.exe`). Podem ser usados para rotular sem precisar iniciar o Python, mas o fluxo de treino permanece o mesmo (gerar CSVs e unificá-los).
 
@@ -110,11 +144,16 @@ python unir_datasets.py  # gera dataset_completo.csv
 cd models
 python treinamento.py
 
-# 4) Treinar e salvar melhor modelo (este repo)
+# 4) Treinar e salvar melhor modelo (neutrófilos)
 cd models
 python treinamento_rf.py  # salva models/artifacts/rf_best.joblib e rf_best_meta.json
 
-# 5) Rodar GUI de inferência e salvar overlay
+# 5) Treinar o modelo de fundo (exemplos)
+cd ..
+python models/treinamento_fundo_rf.py --color-means-only --cv-folds 5
+python models/treinamento_fundo_rf.py --color-means-only --include-glcm --cv-folds 5
+
+# 6) Rodar GUI de inferência e salvar overlay
 cd ..
 python apps/inferencia_gui.py
 ```
