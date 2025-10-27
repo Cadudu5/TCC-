@@ -4,10 +4,10 @@ import glob
 
 # --- CONFIGURAÇÕES ---
 # Pasta onde estão os seus arquivos CSV individuais
-PASTA_DE_ENTRADA = 'datasets_individuais'
+PASTA_DE_ENTRADA = 'padrao_ouro'
 
 # Nome do arquivo de saída que será criado
-ARQUIVO_DE_SAIDA = 'dataset_completo.csv'
+ARQUIVO_DE_SAIDA = 'padrao_ouro_completo.csv'
 
 print("--- Iniciando Script de União de Datasets CSV ---")
 

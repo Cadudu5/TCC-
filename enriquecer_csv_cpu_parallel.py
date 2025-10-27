@@ -6,6 +6,7 @@ from skimage.io import imread
 from skimage.util import img_as_float
 from skimage.color import rgb2hsv, rgb2lab, rgb2gray
 from skimage.feature import graycomatrix, graycoprops
+from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
 # --- CONFIGURAÇÕES ---
@@ -21,53 +22,91 @@ N_SEGMENTS = 5000
 COMPACTNESS = 10
 SIGMA = 3
 
-def extract_features(image, superpixels):
+# 3. Paralelismo (CPU)
+# None => usa os.cpu_count(); ajuste para limitar threads.
+MAX_WORKERS = None
+
+
+def extract_features_parallel(image, superpixels, max_workers=None):
     """
-    Calcula características de cor e textura para cada superpixel.
-    (Esta função é a mesma do script anterior)
+    Calcula características de cor e textura para cada superpixel em paralelo (CPU threads).
+    Mantém o mesmo conjunto de características do script original.
     """
-    print("Iniciando extração de características. Isso pode demorar...")
-    
+    print("Iniciando extração de características (CPU paralela). Isso pode demorar...")
+
     hsv_image = rgb2hsv(image)
     lab_image = rgb2lab(image)
     gray_image_uint8 = (rgb2gray(image) * 255).astype('uint8')
-    
+
     unique_superpixels = np.unique(superpixels)
-    all_features = []
 
-    for superpixel_id in tqdm(unique_superpixels, desc="Extraindo Características"):
+    color_spaces = {
+        'rgb': image,
+        'hsv': hsv_image,
+        'lab': lab_image,
+    }
+
+    distances = [1, 3, 5]
+    angles = [0, np.pi/4, np.pi/2, 3*np.pi/4]
+    texture_props = ['contrast', 'dissimilarity', 'homogeneity', 'correlation']
+
+    def compute_features(superpixel_id):
         mask = (superpixels == superpixel_id)
-        features = {'superpixel_id': superpixel_id}
-        
-        # Cor
-        color_spaces = {'rgb': image, 'hsv': hsv_image, 'lab': lab_image}
-        for name, img_space in color_spaces.items():
-            for channel in range(img_space.shape[2]):
-                channel_pixels = img_space[mask, channel]
-                features[f'{name}_mean_ch{channel+1}'] = np.mean(channel_pixels)
-                features[f'{name}_std_ch{channel+1}'] = np.std(channel_pixels)
 
-        # Textura (GLCM)
+        # Pode ocorrer de um rótulo estar ausente em casos raros; proteger.
+        if not np.any(mask):
+            return {'superpixel_id': int(superpixel_id)}
+
+        features = {'superpixel_id': int(superpixel_id)}
+
+        # Cor
+        for name, img_space in color_spaces.items():
+            # img_space shape: (H, W, C)
+            for channel in range(img_space.shape[2]):
+                channel_pixels = img_space[:, :, channel][mask]
+                # Se o superpixel tiver 1 único pixel, std será 0.0
+                features[f'{name}_mean_ch{channel+1}'] = float(np.mean(channel_pixels))
+                features[f'{name}_std_ch{channel+1}'] = float(np.std(channel_pixels))
+
+        # Textura (GLCM) com recorte de ROI
         rows, cols = np.where(mask)
-        roi = gray_image_uint8[min(rows):max(rows)+1, min(cols):max(cols)+1]
-        
-        glcm = graycomatrix(roi, distances=[1, 3, 5], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4],
-                            levels=256, symmetric=True, normed=True)
-        
-        texture_props = ['contrast', 'dissimilarity', 'homogeneity', 'correlation']
-        for prop in texture_props:
-            features[f'glcm_{prop}'] = np.mean(graycoprops(glcm, prop))
-            
-        all_features.append(features)
-        
+        r0, r1 = int(np.min(rows)), int(np.max(rows))
+        c0, c1 = int(np.min(cols)), int(np.max(cols))
+        roi = gray_image_uint8[r0:r1+1, c0:c1+1]
+
+        # Se ROI for vazia por algum motivo inesperado, pula textura
+        if roi.size > 0:
+            glcm = graycomatrix(
+                roi,
+                distances=distances,
+                angles=angles,
+                levels=256,
+                symmetric=True,
+                normed=True,
+            )
+            for prop in texture_props:
+                features[f'glcm_{prop}'] = float(np.mean(graycoprops(glcm, prop)))
+
+        return features
+
+    all_features = []
+    workers = max_workers if max_workers is not None else os.cpu_count() or 1
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for feat in tqdm(
+            executor.map(compute_features, unique_superpixels),
+            total=len(unique_superpixels),
+            desc="Extraindo Características (CPU paralelo)"):
+            all_features.append(feat)
+
     print("Extração de características concluída.")
     return pd.DataFrame(all_features)
 
+
 def main():
     """
-    Função principal para executar o processo de enriquecimento em lote dos CSVs.
+    Função principal para executar o processo de enriquecimento em lote dos CSVs com paralelismo de CPU.
     """
-    print("--- Iniciando enriquecimento em lote de CSVs ---")
+    print("--- Iniciando enriquecimento em lote de CSVs (CPU paralela) ---")
 
     # --- 0. Validações e preparo ---
     if not os.path.isdir(LABELS_DIR):
@@ -97,7 +136,7 @@ def main():
         """
         Gera candidatos de nomes-base de imagem a partir do nome do CSV de rótulos.
         Exemplos:
-        - rotulos_imagem6 -> imagem6
+        - rotulos_7 dias 40x -> 7 dias 40x
         - rotulos_superpixels_imagem1 -> imagem1
         - 7 dias 40x -> 7 dias 40x
         """
@@ -149,11 +188,11 @@ def main():
                 n_segments=N_SEGMENTS,
                 compactness=COMPACTNESS,
                 sigma=SIGMA,
-                start_label=1
+                start_label=1,
             )
 
-            # 2) Extrair características
-            features_df = extract_features(image, superpixels)
+            # 2) Extrair características (paralelo em CPU)
+            features_df = extract_features_parallel(image, superpixels, max_workers=MAX_WORKERS)
 
             # 3) Carregar rótulos
             print(f"Carregando rótulos: {labels_csv_path}")
@@ -182,10 +221,12 @@ def main():
             pulados += 1
             continue
 
-    print("\n--- Enriquecimento em lote concluído ---")
+    print("\n--- Enriquecimento em lote concluído (CPU paralela) ---")
     print(f"Processados com sucesso: {processados}")
     print(f"Pulados/Com erro: {pulados}")
 
 
 if __name__ == '__main__':
     main()
+
+

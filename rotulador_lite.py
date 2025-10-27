@@ -8,6 +8,7 @@ from skimage.io import imread
 from skimage.util import img_as_float
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from PIL import Image
 
 # --- CONFIGURAÇÕES GLOBAIS DE SEGMENTAÇÃO ---
 # É crucial que estes parâmetros sejam os mesmos no script de processamento final
@@ -82,12 +83,9 @@ class SuperpixelLabelerLiteGUI:
         self.update_status(f"Carregando imagem: {os.path.basename(self.image_path)}...")
 
         try:
-            self.original_image = img_as_float(imread(self.image_path))
-            if self.original_image.ndim == 2:
-                 # Se for escala de cinza, converte para RGB
-                self.original_image = np.stack((self.original_image,) * 3, axis=-1)
-            if self.original_image.shape[2] == 4: # Remove canal alfa se existir
-                self.original_image = self.original_image[:, :, :3]
+            # Usa PIL para lidar melhor com .tiff (inclusive multi-página): pega a 1ª página e converte para RGB
+            img = Image.open(self.image_path).convert('RGB')
+            self.original_image = img_as_float(np.array(img))
 
             self.update_status("Calculando superpixels... Isso pode levar um momento.")
             self.superpixels = slic(self.original_image, n_segments=N_SEGMENTS, compactness=COMPACTNESS, sigma=SIGMA, start_label=1)
