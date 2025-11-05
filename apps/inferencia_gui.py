@@ -135,10 +135,10 @@ class InferenciaGUI:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         artifacts_dir = os.path.join(os.path.dirname(base_dir), 'models', 'artifacts')
         candidates = {
-            'RandomForest': ('rf_best.joblib', 'rf_best_meta.json'),
-            'SVM': ('svm_best.joblib', 'svm_best_meta.json'),
-            'XGBoost': ('xgb_best.joblib', 'xgb_best_meta.json'),
-            'NeuralNet': ('nn_best.joblib', 'nn_best_meta.json'),
+            'RandomForest': ('rf_best.joblib', 'rf_best_cv_meta.json'),
+            'SVM': ('svm_best.joblib', 'svm_best_cv_meta.json'),
+            'XGBoost': ('xgb_best.joblib', 'xgb_best_cv_meta.json'),
+            'NeuralNet': ('nn_best.joblib', 'nn_best_cv_meta.json'),
         }
         available = {}
         for name, (mfile, metafile) in candidates.items():

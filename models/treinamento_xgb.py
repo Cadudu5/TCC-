@@ -23,7 +23,7 @@ except Exception as exc:
 # --- CONFIGURAÇÕES ---
 # dataset_completo 
 # dataset_completo_sem_sd
-DATASET_PATH = '../dataset_completo_sem_sd.csv'
+DATASET_PATH = '../dataset_balanceado.csv'
 
 # Parâmetros do Modelo XGBoost 
 XGB_PARAMS = {

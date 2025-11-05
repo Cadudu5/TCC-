@@ -57,7 +57,7 @@ def run_training_experiments():
     }
 
     # Separando as features (X) do alvo (y)
-    X = df.drop(columns=['label', 'superpixel_id', 'image_origin'])
+    X = df.drop(columns=['label', 'superpixel_id'])
     y = df['label']
 
     # --- 3. Divisão em Treino e Teste (FEITA UMA ÚNICA VEZ) ---

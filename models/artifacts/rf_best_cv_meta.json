@@ -1,0 +1,34 @@
+{
+  "best_experiment": "6. Modelo Completo (Cor + Textura)",
+  "feature_names": [
+    "rgb_mean_ch1",
+    "rgb_mean_ch2",
+    "rgb_mean_ch3",
+    "hsv_mean_ch1",
+    "hsv_mean_ch2",
+    "hsv_mean_ch3",
+    "lab_mean_ch1",
+    "lab_mean_ch2",
+    "lab_mean_ch3",
+    "glcm_contrast",
+    "glcm_dissimilarity",
+    "glcm_homogeneity",
+    "glcm_correlation"
+  ],
+  "model_params": {
+    "n_estimators": 100,
+    "class_weight": "balanced",
+    "random_state": 42
+  },
+  "cv": {
+    "n_splits": 5,
+    "shuffle": true,
+    "random_state": 42
+  },
+  "slic": {
+    "n_segments": 5000,
+    "compactness": 10,
+    "sigma": 3
+  },
+  "f1_mean_cv": 0.9217280538366044
+}

@@ -60,6 +60,16 @@ python enriquecer_csv.py
   
 Observação: se seu dataset final não tiver a coluna `image_origin`, adicione-a (por exemplo, preenchendo com o nome da imagem de origem) ou edite `models/treinamento.py` para não tentar remover essa coluna em `df.drop(...)`.
 
+### Utilitário para balancear classes (`utils/balancear_classes.py`)
+Use este script quando precisar reduzir o desbalanceamento entre classes 0/1 antes do treino.
+
+```bash
+# Exemplo: balancear dataset_completo.csv usando a coluna 'label'
+python utils/balancear_classes.py --input dataset_completo.csv --output dataset_balanceado.csv --label-col label --random-state 42
+```
+
+O script realiza uma subamostragem aleatória da classe majoritária para igualar o número de amostras da classe minoritária e gera um novo CSV balanceado.
+
 ## Treinamento e avaliação (`models/treinamento.py`)
 Script que executa experimentos comparando grupos de features e reporta métricas.
 
