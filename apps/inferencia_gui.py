@@ -42,8 +42,9 @@ class InferenciaGUI:
         # Cache de resultados por (image_path, n_segments)
         self._cache = {}
 
-        # Descobrir modelos disponíveis
-        self.available_models = self._discover_models()
+        # Nome e caminhos do modelo principal (XGBoost)
+        self.model_name = 'XGBoost'
+        self.model_paths = self._load_primary_model()
 
         # UI: seleção de imagem, parâmetros e ações
         btn_frame = tk.Frame(root)
@@ -52,24 +53,8 @@ class InferenciaGUI:
         self.btn_load = tk.Button(btn_frame, text="Carregar imagem", command=self.on_load_image)
         self.btn_load.pack(side=tk.LEFT, padx=4)
 
-        # Parâmetro SLIC: n_segments (compactness=10, sigma=3 fixos)
-        tk.Label(btn_frame, text="n_segments:").pack(side=tk.LEFT, padx=(12, 4))
+        # Valor fixo de n_segments para segmentação SLIC
         self.n_segments_var = tk.IntVar(value=5000)
-        self.spin_segments = tk.Spinbox(
-            btn_frame,
-            from_=500,
-            to=30000,
-            increment=500,
-            textvariable=self.n_segments_var,
-            width=7
-        )
-        self.spin_segments.pack(side=tk.LEFT, padx=4)
-
-        # Seletor de modelo
-        tk.Label(btn_frame, text="Modelo:").pack(side=tk.LEFT, padx=(12, 4))
-        self.model_var = tk.StringVar()
-        self.combo_model = ttk.Combobox(btn_frame, textvariable=self.model_var, state='readonly', width=18)
-        self.combo_model.pack(side=tk.LEFT, padx=4)
 
         # Botão marcar fundo
         self.btn_remove_bg = tk.Button(btn_frame, text="Marcar fundo", command=self.on_remove_background, state=tk.DISABLED)
@@ -78,7 +63,7 @@ class InferenciaGUI:
         # Botão analisar
         self.btn_analyze = tk.Button(btn_frame, text="Analisar imagem", command=self.on_analyze, state=tk.DISABLED)
         self.btn_analyze.pack(side=tk.LEFT, padx=8)
-        self._populate_model_selector()
+        self._update_analyze_enabled()
 
         # Botão salvar
         self.btn_save = tk.Button(btn_frame, text="Salvar overlay", state=tk.DISABLED, command=self.on_save_overlay)
@@ -131,34 +116,17 @@ class InferenciaGUI:
         self.btn_save_stats = tk.Button(self.stats_frame, text="Salvar CSV", command=self.on_save_stats_csv)
         self.btn_save_stats.pack(side=tk.TOP, padx=8, pady=(0,8), anchor='w')
 
-    def _discover_models(self) -> dict:
+    def _load_primary_model(self) -> tuple[str, str] | None:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         artifacts_dir = os.path.join(os.path.dirname(base_dir), 'models', 'artifacts')
-        candidates = {
-            'RandomForest': ('rf_best.joblib', 'rf_best_cv_meta.json'),
-            'SVM': ('svm_best.joblib', 'svm_best_cv_meta.json'),
-            'XGBoost': ('xgb_best.joblib', 'xgb_best_cv_meta.json'),
-            'NeuralNet': ('nn_best.joblib', 'nn_best_cv_meta.json'),
-        }
-        available = {}
-        for name, (mfile, metafile) in candidates.items():
-            model_path = os.path.join(artifacts_dir, mfile)
-            meta_path = os.path.join(artifacts_dir, metafile)
-            if os.path.exists(model_path) and os.path.exists(meta_path):
-                available[name] = (model_path, meta_path)
-        if not available:
+        model_path = os.path.join(artifacts_dir, 'xgb_best.joblib')
+        meta_path = os.path.join(artifacts_dir, 'xgb_best_cv_meta.json')
+        if not (os.path.exists(model_path) and os.path.exists(meta_path)):
             messagebox.showerror(
                 "Erro",
-                f"Nenhum modelo encontrado em\n{artifacts_dir}\nTreine e salve ao menos um modelo.")
-        return available
-
-    def _populate_model_selector(self):
-        names = list(self.available_models.keys())
-        self.combo_model['values'] = names
-        if names:
-            self.combo_model.current(0)
-        # Habilita o botão analisar somente se houver modelo e imagem
-        self._update_analyze_enabled()
+                f"Modelo XGBoost não encontrado em\n{artifacts_dir}\nTreine e salve o modelo antes de usar a ferramenta.")
+            return None
+        return model_path, meta_path
 
     def on_load_image(self):
         path = filedialog.askopenfilename(
@@ -227,15 +195,11 @@ class InferenciaGUI:
                 self.progress.start(10)
                 self.btn_analyze.configure(state=tk.DISABLED)
                 self.btn_load.configure(state=tk.DISABLED)
-                self.combo_model.configure(state='disabled')
-                self.spin_segments.configure(state='disabled')
                 self.btn_remove_bg.configure(state=tk.DISABLED)
                 # Nada para estatísticas aqui (aba permanece)
             else:
                 self.progress.stop()
                 self.btn_load.configure(state=tk.NORMAL)
-                self.combo_model.configure(state='readonly' if self.available_models else 'disabled')
-                self.spin_segments.configure(state=tk.NORMAL)
                 # reavalia se podemos habilitar remoção e análise
                 self._update_analyze_enabled()
                 # Nada para estatísticas aqui (aba permanece)
@@ -243,7 +207,7 @@ class InferenciaGUI:
 
     def _update_analyze_enabled(self):
         has_image = (self.image_rgb is not None)
-        enabled_analyze = has_image and bool(self.available_models)
+        enabled_analyze = has_image and self.model_paths is not None
         self.btn_analyze.configure(state=(tk.NORMAL if enabled_analyze else tk.DISABLED))
         # Remover fundo depende apenas de haver imagem carregada
         self.btn_remove_bg.configure(state=(tk.NORMAL if has_image else tk.DISABLED))
@@ -253,8 +217,8 @@ class InferenciaGUI:
     def _get_bg_model_paths(self):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         artifacts_dir = os.path.join(os.path.dirname(base_dir), 'models', 'artifacts')
-        model_path = os.path.join(artifacts_dir, 'fundo_rf.joblib')
-        meta_path = os.path.join(artifacts_dir, 'fundo_rf_meta.json')
+        model_path = os.path.join(artifacts_dir, 'fundo_xgb.joblib')
+        meta_path = os.path.join(artifacts_dir, 'fundo_xgb_meta.json')
         if not (os.path.exists(model_path) and os.path.exists(meta_path)):
             raise FileNotFoundError(
                 f"Modelo de fundo não encontrado. Esperado em:\n{model_path}\n{meta_path}\nTreine com models/treinamento_fundo_rf.py."
@@ -350,33 +314,34 @@ class InferenciaGUI:
         if self.image_rgb is None:
             messagebox.showwarning("Aviso", "Carregue uma imagem primeiro.")
             return
-        if not self.available_models:
-            messagebox.showwarning("Aviso", "Nenhum modelo disponível para análise.")
+        if self.model_paths is None:
+            messagebox.showwarning("Aviso", "Modelo XGBoost não disponível para análise.")
             return
         try:
             n_segments = int(self.n_segments_var.get())
         except Exception:
             messagebox.showerror("Erro", "Valor de n_segments inválido.")
             return
-        model_name = self.model_var.get() or (list(self.available_models.keys())[0])
 
         self._set_status("Iniciando análise...")
         self._set_busy(True)
 
         thread = threading.Thread(
             target=self._analyze_worker,
-            args=(self.image_rgb.copy(), n_segments, model_name),
+            args=(self.image_rgb.copy(), n_segments),
             daemon=True,
         )
         thread.start()
 
-    def _analyze_worker(self, image_rgb: np.ndarray, n_segments: int, model_name: str):
+    def _analyze_worker(self, image_rgb: np.ndarray, n_segments: int):
         try:
             self._set_status("Segmentando (SLIC)...")
             labels, df = self._get_labels_and_features(image_rgb, n_segments)
 
             self._set_status("Carregando modelo...")
-            model_path, meta_path = self.available_models[model_name]
+            if self.model_paths is None:
+                raise RuntimeError("Modelo XGBoost não está disponível.")
+            model_path, meta_path = self.model_paths
             model = joblib.load(model_path)
             with open(meta_path, 'r', encoding='utf-8') as f:
                 meta = json.load(f)
