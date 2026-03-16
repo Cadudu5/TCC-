@@ -17,7 +17,7 @@ from sklearn.metrics import (
 
 
 # --- CONFIGURAÇÕES ---
-DATASET_PATH = '../dataset_balanceado.csv'
+DATASET_PATH = '../dataset_balanceado_sem_fundo.csv'
 N_ESTIMATORS = 100
 RANDOM_STATE = 42
 CLASS_WEIGHT = 'balanced'

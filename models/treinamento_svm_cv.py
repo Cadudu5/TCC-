@@ -19,7 +19,7 @@ from sklearn.svm import SVC
 
 
 # --- CONFIGURAÇÕES ---
-DATASET_PATH = '../dataset_balanceado.csv'
+DATASET_PATH = '../dataset_balanceado_sem_fundo.csv'
 N_SPLITS = 5
 RANDOM_STATE = 42
 

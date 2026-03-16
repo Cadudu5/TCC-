@@ -85,6 +85,20 @@ def load_fundo_dataset(
     if data.empty or data.shape[1] <= 1:
         raise ValueError("Conjunto de dados vazio ou sem features numéricas válidas.")
 
+    class_counts = data['label'].value_counts()
+    if len(class_counts) > 1:
+        min_count = class_counts.min()
+        balanced_parts = []
+        for label_value, count in class_counts.items():
+            subset = data[data['label'] == label_value]
+            if count > min_count:
+                subset = subset.sample(n=min_count, random_state=42)
+            balanced_parts.append(subset)
+        data = pd.concat(balanced_parts, ignore_index=True)
+        data = data.sample(frac=1, random_state=42).reset_index(drop=True)
+    else:
+        raise ValueError("O dataset de fundo precisa conter pelo menos duas classes para balanceamento.")
+
     return data, num_cols
 
 

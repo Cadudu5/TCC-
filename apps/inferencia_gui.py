@@ -29,6 +29,9 @@ class InferenciaGUI:
         self.image_path = None
         self.image_rgb = None
         self.overlay_image = None
+        self._current_pil_image = None
+        self._display_width = 1
+        self._display_height = 1
         self.background_mask = None  # máscara booleana 2D dos superpixels de fundo
         self._bg_cache_key = None    # cache key (image_path, n_segments) usado na remoção de fundo
         self._bg_sp_ids = None       # conjunto de superpixel_ids previstos como fundo
@@ -90,8 +93,9 @@ class InferenciaGUI:
         self.notebook.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=8, pady=8)
 
         # Canvas de preview (na aba Visualização)
-        self.canvas = tk.Label(self.view_frame)
-        self.canvas.pack(side=tk.TOP, padx=8, pady=8)
+        self.canvas = tk.Canvas(self.view_frame, bg='#333333', bd=0, highlightthickness=0)
+        self.canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=8, pady=8)
+        self.canvas.bind('<Configure>', self._on_resize)
 
         # UI da aba Estatísticas
         stats_inner = tk.Frame(self.stats_frame)
@@ -119,7 +123,7 @@ class InferenciaGUI:
     def _load_primary_model(self) -> tuple[str, str] | None:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         artifacts_dir = os.path.join(os.path.dirname(base_dir), 'models', 'artifacts')
-        model_path = os.path.join(artifacts_dir, 'xgb_best.joblib')
+        model_path = os.path.join(artifacts_dir, 'xgb_best_cv.joblib')
         meta_path = os.path.join(artifacts_dir, 'xgb_best_cv_meta.json')
         if not (os.path.exists(model_path) and os.path.exists(meta_path)):
             messagebox.showerror(
@@ -162,11 +166,45 @@ class InferenciaGUI:
         self._update_stats_view(n_segments=None)
  
         # Mostrar preview da imagem original
-        preview = Image.fromarray(self.image_rgb)
-        preview_tk = ImageTk.PhotoImage(preview)
-        self.canvas.configure(image=preview_tk)
-        self.canvas.image = preview_tk
+        self._current_pil_image = Image.fromarray(self.image_rgb)
+        self._update_image_display()
         self.btn_save.configure(state=tk.DISABLED)
+
+    def _on_resize(self, event):
+        self._display_width = event.width
+        self._display_height = event.height
+        self._update_image_display()
+
+    def _update_image_display(self):
+        if self._current_pil_image is None:
+            return
+        
+        if self._display_width < 1 or self._display_height < 1:
+            return
+
+        img_w, img_h = self._current_pil_image.size
+        
+        # Calculate scale to fit within display area while maintaining aspect ratio
+        scale = min(self._display_width / img_w, self._display_height / img_h)
+        new_w = int(img_w * scale)
+        new_h = int(img_h * scale)
+        
+        if new_w < 1 or new_h < 1:
+            return
+
+        try:
+            resample = Image.Resampling.LANCZOS
+        except AttributeError:
+            resample = Image.LANCZOS
+
+        resized = self._current_pil_image.resize((new_w, new_h), resample)
+        self.tk_img = ImageTk.PhotoImage(resized)
+        
+        self.canvas.delete("all")
+        # Center image
+        x = self._display_width // 2
+        y = self._display_height // 2
+        self.canvas.create_image(x, y, image=self.tk_img, anchor='center')
 
     def _get_cache_key(self, n_segments: int) -> tuple:
         return (self.image_path, int(n_segments))
@@ -292,10 +330,10 @@ class InferenciaGUI:
                 self.overlay_image = overlay
                 # Atualiza estatísticas (fundo pode ter mudado)
                 self._update_stats_view(n_segments=n_segments)
-                preview = Image.fromarray(self.overlay_image)
-                preview_tk = ImageTk.PhotoImage(preview)
-                self.canvas.configure(image=preview_tk)
-                self.canvas.image = preview_tk
+                
+                self._current_pil_image = Image.fromarray(self.overlay_image)
+                self._update_image_display()
+                
                 self.btn_save.configure(state=tk.NORMAL)
                 self._set_status("Fundo marcado (vermelho)")
                 self._set_busy(False)
@@ -372,10 +410,10 @@ class InferenciaGUI:
                     self._pred_cache_key = self._get_cache_key(n_segments)
                     self._pred_bg_cache_key = self._bg_cache_key
                     self.overlay_image = overlay
-                    preview = Image.fromarray(self.overlay_image)
-                    preview_tk = ImageTk.PhotoImage(preview)
-                    self.canvas.configure(image=preview_tk)
-                    self.canvas.image = preview_tk
+                    
+                    self._current_pil_image = Image.fromarray(self.overlay_image)
+                    self._update_image_display()
+                    
                     self.btn_save.configure(state=tk.NORMAL)
                     self._set_status("Sem superpixels para análise (após remover fundo)")
                     self._update_stats_view(n_segments=n_segments)
@@ -413,10 +451,10 @@ class InferenciaGUI:
                 self._pred_cache_key = self._get_cache_key(n_segments)
                 self._pred_bg_cache_key = self._bg_cache_key
                 self.overlay_image = overlay
-                preview = Image.fromarray(self.overlay_image)
-                preview_tk = ImageTk.PhotoImage(preview)
-                self.canvas.configure(image=preview_tk)
-                self.canvas.image = preview_tk
+                
+                self._current_pil_image = Image.fromarray(self.overlay_image)
+                self._update_image_display()
+                
                 self.btn_save.configure(state=tk.NORMAL)
                 # Atualiza estatísticas após predição
                 self._set_status("Concluído")

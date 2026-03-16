@@ -2,14 +2,23 @@
   "best_experiment": "6. Modelo Completo (Cor + Textura)",
   "feature_names": [
     "rgb_mean_ch1",
+    "rgb_std_ch1",
     "rgb_mean_ch2",
+    "rgb_std_ch2",
     "rgb_mean_ch3",
+    "rgb_std_ch3",
     "hsv_mean_ch1",
+    "hsv_std_ch1",
     "hsv_mean_ch2",
+    "hsv_std_ch2",
     "hsv_mean_ch3",
+    "hsv_std_ch3",
     "lab_mean_ch1",
+    "lab_std_ch1",
     "lab_mean_ch2",
+    "lab_std_ch2",
     "lab_mean_ch3",
+    "lab_std_ch3",
     "glcm_contrast",
     "glcm_dissimilarity",
     "glcm_homogeneity",
@@ -36,5 +45,5 @@
     "compactness": 10,
     "sigma": 3
   },
-  "f1_mean_cv": 0.9223069031508002
+  "f1_mean_cv": 0.923723059903234
 }

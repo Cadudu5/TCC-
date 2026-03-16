@@ -1,0 +1,75 @@
+{
+  "created_at": "2025-12-06T16:29:50.988833+00:00",
+  "algorithm": "XGBClassifier",
+  "params": {
+    "n_estimators": 300,
+    "max_depth": 6,
+    "learning_rate": 0.1,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "random_state": 42,
+    "n_jobs": -1,
+    "tree_method": "hist",
+    "eval_metric": "logloss"
+  },
+  "data_dir": "C:\\Users\\cadud\\Documents\\tcc\\fundo_enriquecido",
+  "n_samples": 3890,
+  "n_features": 9,
+  "test_size": 0.2,
+  "metrics": {
+    "accuracy": 0.9524421593830334,
+    "f1_weighted": 0.9524420808117855,
+    "f1_macro": 0.9524420808117855,
+    "precision_weighted": 0.9524451493523659,
+    "recall_weighted": 0.9524421593830334,
+    "confusion_matrix": [
+      [
+        371,
+        18
+      ],
+      [
+        19,
+        370
+      ]
+    ],
+    "classification_report": {
+      "0": {
+        "precision": 0.9512820512820512,
+        "recall": 0.9537275064267352,
+        "f1-score": 0.9525032092426188,
+        "support": 389.0
+      },
+      "1": {
+        "precision": 0.9536082474226805,
+        "recall": 0.9511568123393316,
+        "f1-score": 0.9523809523809523,
+        "support": 389.0
+      },
+      "accuracy": 0.9524421593830334,
+      "macro avg": {
+        "precision": 0.9524451493523658,
+        "recall": 0.9524421593830334,
+        "f1-score": 0.9524420808117855,
+        "support": 778.0
+      },
+      "weighted avg": {
+        "precision": 0.9524451493523659,
+        "recall": 0.9524421593830334,
+        "f1-score": 0.9524420808117855,
+        "support": 778.0
+      }
+    }
+  },
+  "cv": {},
+  "feature_names": [
+    "rgb_mean_ch1",
+    "rgb_mean_ch2",
+    "rgb_mean_ch3",
+    "hsv_mean_ch1",
+    "hsv_mean_ch2",
+    "hsv_mean_ch3",
+    "lab_mean_ch1",
+    "lab_mean_ch2",
+    "lab_mean_ch3"
+  ]
+}
