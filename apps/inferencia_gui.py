@@ -10,14 +10,53 @@ import numpy as np
 import joblib
 import csv
 from datetime import datetime
+import xgboost as xgb
 
 # Garante que o diretório raiz do projeto esteja no sys.path para importar 'features'
-_CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.dirname(_CURRENT_DIR)
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    _PROJECT_ROOT = sys._MEIPASS
+    _CURRENT_DIR = os.path.join(_PROJECT_ROOT, 'apps')
+else:
+    _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+    _PROJECT_ROOT = os.path.dirname(_CURRENT_DIR)
+
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
 from features.extract import segment_superpixels, extract_features
+
+
+def _artifacts_dir() -> str:
+    return os.path.join(_PROJECT_ROOT, 'models', 'artifacts')
+
+
+def _resolve_model_artifact(base_name: str, meta_name: str) -> tuple[str, str]:
+    artifacts_dir = _artifacts_dir()
+    booster_path = os.path.join(artifacts_dir, f'{base_name}_booster.json')
+    joblib_path = os.path.join(artifacts_dir, f'{base_name}.joblib')
+    meta_path = os.path.join(artifacts_dir, meta_name)
+
+    if os.path.exists(booster_path) and os.path.exists(meta_path):
+        return booster_path, meta_path
+    if os.path.exists(joblib_path) and os.path.exists(meta_path):
+        return joblib_path, meta_path
+    return booster_path, meta_path
+
+
+def _load_predictor(model_path: str):
+    if model_path.lower().endswith('.json'):
+        booster = xgb.Booster()
+        booster.load_model(model_path)
+        return booster
+    return joblib.load(model_path)
+
+
+def _predict_binary(predictor, X_df):
+    if isinstance(predictor, xgb.Booster):
+        dmatrix = xgb.DMatrix(X_df, feature_names=list(X_df.columns))
+        scores = predictor.predict(dmatrix)
+        return (np.asarray(scores) >= 0.5).astype(np.int32)
+    return np.asarray(predictor.predict(X_df), dtype=np.int32)
 
 
 class InferenciaGUI:
@@ -44,6 +83,7 @@ class InferenciaGUI:
          
         # Cache de resultados por (image_path, n_segments)
         self._cache = {}
+        self._feature_workers = self._resolve_feature_workers()
 
         # Nome e caminhos do modelo principal (XGBoost)
         self.model_name = 'XGBoost'
@@ -120,11 +160,22 @@ class InferenciaGUI:
         self.btn_save_stats = tk.Button(self.stats_frame, text="Salvar CSV", command=self.on_save_stats_csv)
         self.btn_save_stats.pack(side=tk.TOP, padx=8, pady=(0,8), anchor='w')
 
+    def _resolve_feature_workers(self) -> int:
+        raw_value = os.environ.get("TCC_INFERENCE_WORKERS", "").strip()
+        if raw_value:
+            try:
+                return max(1, int(raw_value))
+            except ValueError:
+                return 1
+
+        cpu_count = os.cpu_count() or 1
+        if cpu_count <= 2:
+            return 1
+        return min(cpu_count - 1, 8)
+
     def _load_primary_model(self) -> tuple[str, str] | None:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        artifacts_dir = os.path.join(os.path.dirname(base_dir), 'models', 'artifacts')
-        model_path = os.path.join(artifacts_dir, 'xgb_best_cv.joblib')
-        meta_path = os.path.join(artifacts_dir, 'xgb_best_cv_meta.json')
+        artifacts_dir = _artifacts_dir()
+        model_path, meta_path = _resolve_model_artifact('xgb_best_cv', 'xgb_best_cv_meta.json')
         if not (os.path.exists(model_path) and os.path.exists(meta_path)):
             messagebox.showerror(
                 "Erro",
@@ -220,7 +271,7 @@ class InferenciaGUI:
             compactness=10,
             sigma=3,
         )
-        df = extract_features(image_rgb, labels)
+        df = extract_features(image_rgb, labels, max_workers=self._feature_workers)
         self._cache[key] = (labels, df)
         return labels, df
 
@@ -253,10 +304,7 @@ class InferenciaGUI:
         # Aba Estatísticas sempre visível; apenas valores refletem estado
 
     def _get_bg_model_paths(self):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        artifacts_dir = os.path.join(os.path.dirname(base_dir), 'models', 'artifacts')
-        model_path = os.path.join(artifacts_dir, 'fundo_xgb.joblib')
-        meta_path = os.path.join(artifacts_dir, 'fundo_xgb_meta.json')
+        model_path, meta_path = _resolve_model_artifact('fundo_xgb', 'fundo_xgb_meta.json')
         if not (os.path.exists(model_path) and os.path.exists(meta_path)):
             raise FileNotFoundError(
                 f"Modelo de fundo não encontrado. Esperado em:\n{model_path}\n{meta_path}\nTreine com models/treinamento_fundo_rf.py."
@@ -292,7 +340,7 @@ class InferenciaGUI:
             # Carrega modelo de fundo
             self._set_status("Carregando modelo de fundo...")
             model_path, meta_path = self._get_bg_model_paths()
-            bg_model = joblib.load(model_path)
+            bg_model = _load_predictor(model_path)
             with open(meta_path, 'r', encoding='utf-8') as f:
                 bg_meta = json.load(f)
             feature_names = bg_meta.get('feature_names', [])
@@ -304,16 +352,13 @@ class InferenciaGUI:
 
             # Predição: 1 -> fundo
             self._set_status("Predizendo fundo...")
-            y_bg = bg_model.predict(df[feature_names])
+            y_bg = _predict_binary(bg_model, df[feature_names])
 
             # Construir máscara de fundo
-            mask_bg = np.zeros(labels.shape, dtype=bool)
-            sp_ids = df['superpixel_id'].to_numpy()
-            bg_ids = set()
-            for sp_id, pred in zip(sp_ids, y_bg):
-                if int(pred) == 1:
-                    mask_bg[labels == int(sp_id)] = True
-                    bg_ids.add(int(sp_id))
+            sp_ids = df['superpixel_id'].to_numpy(dtype=np.int32)
+            bg_ids_array = sp_ids[np.asarray(y_bg, dtype=np.int32) == 1]
+            mask_bg = np.isin(labels, bg_ids_array)
+            bg_ids = set(map(int, bg_ids_array.tolist()))
 
             # Overlay vermelho no fundo
             overlay = image_rgb.copy().astype(np.float32)
@@ -380,7 +425,7 @@ class InferenciaGUI:
             if self.model_paths is None:
                 raise RuntimeError("Modelo XGBoost não está disponível.")
             model_path, meta_path = self.model_paths
-            model = joblib.load(model_path)
+            model = _load_predictor(model_path)
             with open(meta_path, 'r', encoding='utf-8') as f:
                 meta = json.load(f)
 
@@ -422,7 +467,7 @@ class InferenciaGUI:
                 return
 
             self._set_status("Predizendo superpixels...")
-            y_pred = model.predict(valid_df[feature_names])
+            y_pred = _predict_binary(model, valid_df[feature_names])
 
             self._set_status("Gerando overlay...")
             # Começa do overlay atual (que pode conter o fundo em vermelho) ou da imagem original
@@ -430,11 +475,9 @@ class InferenciaGUI:
             overlay = base.copy().astype(np.float32)
             alpha = 100  # 0-255
 
-            mask_pos = np.zeros(labels.shape, dtype=bool)
-            sp_ids = valid_sp_ids
-            for sp_id, pred in zip(sp_ids, y_pred):
-                if int(pred) == 1:
-                    mask_pos[labels == int(sp_id)] = True
+            valid_sp_ids = valid_sp_ids.astype(np.int32, copy=False)
+            pos_ids_array = valid_sp_ids[np.asarray(y_pred, dtype=np.int32) == 1]
+            mask_pos = np.isin(labels, pos_ids_array)
 
             green = np.zeros_like(overlay)
             green[..., 1] = 255
@@ -444,7 +487,7 @@ class InferenciaGUI:
 
             def _finish():
                 # Guarda predições para estatísticas
-                pos_ids = {int(sp_id) for sp_id, pred in zip(valid_sp_ids, y_pred) if int(pred) == 1}
+                pos_ids = set(map(int, pos_ids_array.tolist()))
                 neg_ids = set(map(int, valid_sp_ids)) - pos_ids
                 self._pred_pos_sp_ids = pos_ids
                 self._pred_neg_sp_ids = neg_ids
@@ -571,5 +614,3 @@ if __name__ == '__main__':
     root = tk.Tk()
     app = InferenciaGUI(root)
     root.mainloop()
-
-
