@@ -1,0 +1,89 @@
+INSTRUCOES DE INSTALACAO E USO
+ROTULADOR DE NEUTROFILOS PARA WINDOWS
+=====================================
+
+CONTEUDO DO PACOTE
+------------------
+- INSTALAR_WINDOWS.bat: prepara o programa na primeira utilizacao.
+- ABRIR_ROTULADOR_WINDOWS.bat: abre o rotulador depois da instalacao.
+- IMAGENS_PARA_ROTULAR: contem as nove imagens que devem ser marcadas.
+- MARCACOES_CONCLUIDAS: pasta onde devem ser salvos os resultados.
+
+1. INSTALAR O PYTHON 3.12
+-------------------------
+Caso o computador ainda nao tenha o Python 3.12:
+
+1. Acesse https://www.python.org/downloads/windows/
+2. Baixe o instalador do Python 3.12 para Windows 64 bits.
+3. Execute o instalador.
+4. Mantenha habilitado o Python Launcher durante a instalacao.
+5. Conclua a instalacao do Python.
+
+2. EXTRAIR O PACOTE
+-------------------
+1. Clique com o botao direito no arquivo ZIP recebido.
+2. Escolha "Extrair Tudo".
+3. Abra a pasta Rotulador_Neutrofilos_Windows que foi extraida.
+
+Nao execute o programa diretamente de dentro do arquivo ZIP.
+
+3. INSTALAR O ROTULADOR
+-----------------------
+1. Verifique se o computador esta conectado a internet.
+2. De dois cliques em INSTALAR_WINDOWS.bat.
+3. Caso o Windows exiba uma confirmacao, permita a execucao.
+4. Aguarde a instalacao das dependencias. Ela pode levar alguns minutos.
+5. Feche a janela somente depois da mensagem:
+   "Instalacao concluida com sucesso".
+
+A instalacao e necessaria apenas uma vez. O programa cria o ambiente
+.venv-rotulador dentro da propria pasta e nao altera os arquivos das imagens.
+
+4. ABRIR E UTILIZAR
+-------------------
+1. De dois cliques em ABRIR_ROTULADOR_WINDOWS.bat.
+2. Clique em "Carregar imagem".
+3. Entre na pasta IMAGENS_PARA_ROTULAR.
+4. Selecione uma imagem .tif. O programa tambem aceita .tiff.
+5. Aguarde a mensagem "Pronto" na parte inferior da janela.
+6. Clique com o botao esquerdo sobre cada superpixel correspondente a
+   neutrofilos. A regiao selecionada ficara verde.
+7. Para corrigir, clique novamente na regiao ou use o botao "Desfazer".
+
+Controles adicionais:
+- Roda do mouse: aplicar zoom.
+- Botao direito pressionado: mover a imagem.
+- Botao do meio: restaurar a visualizacao.
+- Ctrl+Z: desfazer o ultimo clique.
+- Ctrl+S: salvar.
+
+5. SALVAR CADA MARCACAO
+-----------------------
+1. Clique em "Salvar marcacao".
+2. Escolha a pasta MARCACOES_CONCLUIDAS.
+3. Mantenha o nome sugerido pelo programa.
+4. O programa criara dois arquivos:
+   - rotulos_<nome da imagem>.csv
+   - visualizacao_<nome da imagem>.png
+5. Confirme visualmente que o PNG mostra as regioes marcadas em verde.
+6. Repita para todas as nove imagens.
+
+Se for preciso continuar uma marcacao interrompida, carregue primeiro a mesma
+imagem, clique em "Abrir marcacao" e selecione o CSV salvo anteriormente.
+
+6. ENVIAR OS RESULTADOS
+-----------------------
+Depois de concluir as nove imagens:
+
+1. Feche o rotulador.
+2. Confirme que MARCACOES_CONCLUIDAS contem nove CSVs e nove PNGs.
+3. Clique com o botao direito na pasta MARCACOES_CONCLUIDAS.
+4. Escolha "Compactar para arquivo ZIP" ou "Enviar para > Pasta compactada".
+5. Envie o ZIP ao responsavel pelo projeto.
+
+IMPORTANTE
+----------
+- Nao renomeie nem edite as imagens originais.
+- Nao abra ou altere os CSVs no Excel antes de devolve-los.
+- Em arquivos TIFF com varias paginas, o rotulador utiliza a primeira pagina.
+- Em caso de erro, fotografe a mensagem e envie-a ao responsavel pelo projeto.

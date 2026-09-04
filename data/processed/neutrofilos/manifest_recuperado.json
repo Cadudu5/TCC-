@@ -1,0 +1,169 @@
+{
+  "status": "partial_ground_truth_use_existing_model_do_not_retrain",
+  "recovered_files": 12,
+  "recovered_rows": 59488,
+  "recovered_positive": 9293,
+  "recovered_negative": 50195,
+  "article_rows_after_background_removal": 94999,
+  "article_positive": 12862,
+  "article_negative": 82137,
+  "missing_rows_relative_to_article": 35511,
+  "missing_positive_relative_to_article": 3569,
+  "extraction": {
+    "slic": {
+      "n_segments": 5000,
+      "compactness": 10.0,
+      "sigma": 3.0,
+      "start_label": 1
+    },
+    "glcm": {
+      "levels": 256,
+      "distances": [
+        1,
+        3,
+        5
+      ],
+      "angles_radians": [
+        0.0,
+        0.7853981633974483,
+        1.5707963267948966,
+        2.356194490192345
+      ],
+      "properties": [
+        "contrast",
+        "dissimilarity",
+        "homogeneity",
+        "correlation"
+      ],
+      "region": "bounding_box"
+    }
+  },
+  "preserved_model": {
+    "path": "models/artifacts/rf_best_cv.joblib",
+    "sha256": "e954c393e0a88f504ec1bc7e72e0720210dade2b52924b3657d31d67d4c157c3",
+    "metadata": "models/artifacts/rf_best_cv_meta.json",
+    "metadata_sha256": "bad41e0dc88d54350f89c93fba426a43c5d76eb574e20a780ba0915d28391f73"
+  },
+  "files": [
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_21 dias 20xb (1).csv",
+      "image": "imagens/21 dias 20xb.tif",
+      "labels_sha256": "b60bdbccc75b9d428c3efc802142877f6f6da81472016e01a81bf6334cacabfb",
+      "image_sha256": "3a011f4116faf9bc4c4a36bc9f54f9d291c6c48f1265bd54e0f4254da72435a7",
+      "rows": 4852,
+      "positive": 905,
+      "negative": 3947,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_90 40x.csv",
+      "image": "imagens/90 40x.tif",
+      "labels_sha256": "ca869a99b3d774e467e298d899f976d2f1dbe871a98a9590879bef6407f87db2",
+      "image_sha256": "d86d647cbb5e5cbdfbe768068f15e6bcf9a1ae1b187ebc9af776c9e48d60688b",
+      "rows": 4769,
+      "positive": 873,
+      "negative": 3896,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_Neutrofilo IL4 42dias 40X.csv",
+      "image": "imagens/Neutrofilo IL4 42dias 40X.tif",
+      "labels_sha256": "99e690310b845f96ff5fe98533125e9a4fa70b3be4c50f4ada0586f24ab05e55",
+      "image_sha256": "a2a1e86909af4ff36bfe6bde7e7b05338d95c5946884a167262db8393706329b",
+      "rows": 4847,
+      "positive": 1057,
+      "negative": 3790,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_WT 21 dias neutrófilos 20 40X.csv",
+      "image": "imagens/WT 21 dias neutrófilos 20 40X.tiff",
+      "labels_sha256": "5c6d3ce2459b82e662bcb1e9ea5cb4f2497f361909f26f12367133b257c90e07",
+      "image_sha256": "4cf3e9a0706589f5806b2251cde3885c4367233d046041162520c53722c6f4e6",
+      "rows": 5101,
+      "positive": 617,
+      "negative": 4484,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_WT 21 dias neutrófilos 3 40X.csv",
+      "image": "imagens/WT 21 dias neutrófilos 3 40X.tiff",
+      "labels_sha256": "6780b86c54c54dfb6393a88ff0794b212c726545c88e10f1f6c3a00e94ee39f8",
+      "image_sha256": "7fd4dc5a5d1c1c1cbb158fa65b6a1fcaac08e9e7c2992657a57b565529959fa6",
+      "rows": 5085,
+      "positive": 420,
+      "negative": 4665,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_WT 28 dias neutrófilos 19 B 40X.csv",
+      "image": "imagens/WT 28 dias neutrófilos 19 B 40X.tiff",
+      "labels_sha256": "bce36d18da997fe3f72b716a7c4275e15a66bb9dd7f2e08bc4b309c0197dca7f",
+      "image_sha256": "2fc54104b8330ecda8571f6ba004e26811328cd8979d0488ba7a490e149de932",
+      "rows": 4904,
+      "positive": 617,
+      "negative": 4287,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_WT 42 dias neutrófilos 11 40X.csv",
+      "image": "Neutrofilos/WT 42 dias neutrófilos 11 40X.tiff",
+      "labels_sha256": "3db77a52b6c2d3301832acc40fe6a01bfbf9e1084e25ca3c9bbd821dd66307a5",
+      "image_sha256": "ece5de056b5ad7f4cf15e732b24f39d58500f62537263904f950848fbb7577d9",
+      "rows": 5050,
+      "positive": 709,
+      "negative": 4341,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_WT 42 dias neutrófilos 21 40X.csv",
+      "image": "imagens/WT 42 dias neutrófilos 21 40X.tiff",
+      "labels_sha256": "97ea5451f6a40651f79d1361e74439565bf5327918442cb5371efdeb3e03f3c8",
+      "image_sha256": "910e3f9a229749c93fb324c99276ad902d23e4f0dfa9bb41c12beac0ee221d54",
+      "rows": 5066,
+      "positive": 776,
+      "negative": 4290,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_WT 42 dias neutrófilos 6 40X.csv",
+      "image": "imagens/WT 42 dias neutrófilos 6 40X.tiff",
+      "labels_sha256": "6e262d6f9bbc7a85bd7e1f70de749ffb516b275100a3917257221e6fe29b95d2",
+      "image_sha256": "c1229ec49e65e4fccc4ce4e11f1e9acfd38663ff9b9310eb205fff649677d045",
+      "rows": 5057,
+      "positive": 1081,
+      "negative": 3976,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_WT 42 dias neutrófilos 7 40X.csv",
+      "image": "Neutrofilos/WT 42 dias neutrófilos 7 40X.tiff",
+      "labels_sha256": "e983e09fcbb5f8b4a0104d7e24985bdb8b6f7205225ba94c2fccf5fb1c0ec94c",
+      "image_sha256": "c6e7b6f3d7fe2344d946365989a317bb11a3bd71d4784aafce97480632f4ee3a",
+      "rows": 5091,
+      "positive": 887,
+      "negative": 4204,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_WT 7 dias neutrófilos 2 40X.csv",
+      "image": "imagens/WT 7 dias neutrófilos 2 40X.tiff",
+      "labels_sha256": "27d7137a7f4cd9dc10b8ec93a46602e4d96a81349a5d5b5066ba77aebe487d98",
+      "image_sha256": "956923d385a1bb15edccfa256e9e953a56620c57cea5062e9a5c2491d24fa2bd",
+      "rows": 5009,
+      "positive": 488,
+      "negative": 4521,
+      "slic_ids_validated": true
+    },
+    {
+      "labels": "marcacoes-neutrofilos/rotulos_neutr wt 40xb2.csv",
+      "image": "imagens/neutr wt 40xb2.tif",
+      "labels_sha256": "e8d93d06b9beb251e0e902ffac5b5d4fb3a4c62cefbc6ed249e3b9221291f516",
+      "image_sha256": "89a776e818c80e303312342855f7a78229a8d9004cf7f554b37e115fcc646d57",
+      "rows": 4657,
+      "positive": 863,
+      "negative": 3794,
+      "slic_ids_validated": true
+    }
+  ]
+}

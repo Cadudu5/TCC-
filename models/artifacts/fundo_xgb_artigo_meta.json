@@ -1,0 +1,92 @@
+{
+  "created_at": "2026-08-15T23:00:56.538243+00:00",
+  "algorithm": "XGBClassifier",
+  "label_semantics": {
+    "0": "nao_fundo",
+    "1": "fundo"
+  },
+  "feature_names": [
+    "lab_mean_ch1",
+    "lab_mean_ch2",
+    "lab_mean_ch3",
+    "glcm_contrast",
+    "glcm_dissimilarity",
+    "glcm_homogeneity",
+    "glcm_correlation"
+  ],
+  "n_samples": 5400,
+  "class_counts": {
+    "0": 2700,
+    "1": 2700
+  },
+  "extraction": {
+    "slic": {
+      "n_segments": 5000,
+      "compactness": 10.0,
+      "sigma": 3.0,
+      "start_label": 1
+    },
+    "glcm": {
+      "levels": 256,
+      "distances": [
+        1,
+        3,
+        5
+      ],
+      "angles_radians": [
+        0.0,
+        0.7853981633974483,
+        1.5707963267948966,
+        2.356194490192345
+      ],
+      "properties": [
+        "contrast",
+        "dissimilarity",
+        "homogeneity",
+        "correlation"
+      ],
+      "region": "bounding_box"
+    }
+  },
+  "cv": {
+    "accuracy": 0.9277777777777778,
+    "accuracy_std": 0.00523782800878926,
+    "sensitivity": 0.9325925925925926,
+    "sensitivity_std": 0.009266663706071704,
+    "specificity": 0.922962962962963,
+    "specificity_std": 0.009910435674266423,
+    "auc": 0.9803312757201648,
+    "auc_std": 0.002765614277264042,
+    "mean_confusion_matrix": [
+      [
+        498.4,
+        41.6
+      ],
+      [
+        36.4,
+        503.6
+      ]
+    ],
+    "article_reference": {
+      "accuracy": 0.928,
+      "sensitivity": 0.934,
+      "specificity": 0.923,
+      "auc": 0.981
+    },
+    "delta_from_article": {
+      "accuracy": -0.00022222222222223476,
+      "sensitivity": -0.0014074074074074128,
+      "specificity": -3.703703703705763e-05,
+      "auc": -0.00066872427983522
+    }
+  },
+  "versions": {
+    "numpy": "2.2.6",
+    "pandas": "2.3.1",
+    "scikit-image": "0.25.2",
+    "scikit-learn": "1.7.1",
+    "xgboost": "3.0.5",
+    "joblib": "1.5.1"
+  },
+  "dataset_sha256": "06af6f60de326fb1812c5cd346c952d6a78459a4d40ade69cac173f80375ad1e"
+}

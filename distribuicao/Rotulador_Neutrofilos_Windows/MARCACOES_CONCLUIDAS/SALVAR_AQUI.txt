@@ -1,0 +1,2 @@
+Salve nesta pasta o CSV e a visualizacao PNG de cada uma das nove imagens.
+Ao concluir, compacte toda esta pasta e envie-a ao responsavel pelo projeto.

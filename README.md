@@ -1,169 +1,182 @@
-## Objetivo do projeto
-Treinar um modelo de aprendizado de máquina para identificar superpixels positivos para neutrófilos em amostras histológicas de tecido gengival murino.
+# Quantificação automatizada de infiltrado neutrofílico
 
-## Ambiente e dependências
-- **Python**: 3.9+ (recomendado)
-- **Instalação de dependências**:
-```bash
-pip install -r requirements.txt
-```
+Pipeline de segmentação SLIC e aprendizado de máquina para identificar fundo e
+neutrófilos em imagens histológicas do tecido periodontal.
 
-## Rotulador de superpixels (`rotulador_gui.py`)
-Ferramenta GUI para segmentar a imagem em superpixels (SLIC), extrair características e rotular manualmente superpixels positivos para neutrófilos.
+## Estado recuperado
 
-### Parâmetros SLIC usados
-- **N_SEGMENTS**: 5000
-- **COMPACTNESS**: 10
-- **SIGMA**: 3
+- Etapa 1 (fundo): 19 imagens e 19 marcações completas, totalizando 92.340
+  superpixels (89.640 não fundo e 2.700 fundo).
+- Etapa 2 (neutrófilos): 12 marcações recuperadas. O modelo Random Forest já
+  treinado foi preservado e é usado na inferência; ele **não é retreinado** com
+  a base parcial.
+- Os parâmetros compartilhados ficam em `features/extract.py`. Treino e
+  inferência usam SLIC 5000/10/3 e GLCM com 256 níveis, distâncias 1/3/5 e
+  quatro ângulos.
 
-Mantenha esses valores consistentes em todo o pipeline (especialmente ao recalcular superpixels fora da GUI).
+## Preparação no macOS
 
-### O que é extraído por superpixel
-- **Cores (médias)**: `rgb_mean_ch{1..3}`, `hsv_mean_ch{1..3}`, `lab_mean_ch{1..3}`
-- **Textura (GLCM)**: `glcm_contrast`, `glcm_dissimilarity`, `glcm_homogeneity`, `glcm_correlation`
-- **Metadados**: `superpixel_id` e coluna de rótulo `label` (0=fundo, 1=neutrófilo)
-
-### Como usar
-```bash
-python rotulador_gui.py
-```
-1. Clique em "Carregar Imagem" e selecione um arquivo (`.tif`, `.tiff`, `.png`, `.jpg`, `.jpeg`).
-2. Aguarde a segmentação e a extração de características.
-3. Clique nos superpixels para alternar o rótulo: verde = positivo (neutrófilo), transparente = negativo.
-4. Clique em "Salvar Resultados" para exportar:
-   - CSV com as características + `label` (nome sugerido: `dataset_<nome_da_imagem>.csv`)
-   - Imagem com marcações (PNG/JPG)
-
-## Preparação do dataset para treino
-Você pode construir um dataset único a partir de vários CSVs gerados pela GUI.
-
-### Opção A) Unir múltiplos CSVs rotulados
-1. Coloque os arquivos CSV individuais na pasta `datasets_individuais/`.
-2. Execute:
-```bash
-python unir_datasets.py
-```
-Isso criará `dataset_completo.csv` na raiz do projeto e adicionará a coluna `image_origin` com a origem de cada amostra.
-
-### Opção B) Recalcular características e juntar com rótulos existentes
-Se você possui um CSV de rótulos separado por `superpixel_id`, use `enriquecer_csv.py`:
-- Ajuste `IMAGE_PATH`, `LABELS_CSV_PATH` e `OUTPUT_CSV_PATH` no script.
-- Garanta que `N_SEGMENTS`, `COMPACTNESS` e `SIGMA` sejam exatamente os mesmos da GUI.
-```bash
-python enriquecer_csv.py
-```
-
-### Colunas esperadas pelo treino
-- `label` (0/1), `superpixel_id`, `image_origin` (se unificado por `unir_datasets.py`)
-- Features de cor: prefixos `rgb_`, `hsv_`, `lab_`
-- Features de textura: prefixo `glcm_`
-  
-Observação: se seu dataset final não tiver a coluna `image_origin`, adicione-a (por exemplo, preenchendo com o nome da imagem de origem) ou edite `models/treinamento.py` para não tentar remover essa coluna em `df.drop(...)`.
-
-### Utilitário para balancear classes (`utils/balancear_classes.py`)
-Use este script quando precisar reduzir o desbalanceamento entre classes 0/1 antes do treino.
+O projeto usa Python 3.12. No Mac, o XGBoost também precisa do OpenMP:
 
 ```bash
-# Exemplo: balancear dataset_completo.csv usando a coluna 'label'
-python utils/balancear_classes.py --input dataset_completo.csv --output dataset_balanceado.csv --label-col label --random-state 42
+brew install libomp
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-O script realiza uma subamostragem aleatória da classe majoritária para igualar o número de amostras da classe minoritária e gera um novo CSV balanceado.
+As versões críticas estão fixadas no `requirements.txt`. A normalização por
+`staintools` é opcional e possui dependências separadas em
+`requirements-normalizacao.txt`.
 
-## Treinamento e avaliação (`models/treinamento.py`)
-Script que executa experimentos comparando grupos de features e reporta métricas.
+## Rotular neutrófilos
 
-### Entrada
-- Por padrão lê `../dataset_completo.csv` (relativo à pasta `models/`).
-  - Se necessário, ajuste `DATASET_PATH` no início do script.
+O rotulador oficial é `rotulador_lite.py`. Ele calcula somente o SLIC ao abrir
+a imagem; a extração de CIELAB/GLCM acontece posteriormente no pipeline. Isso
+evita a demora de dezenas de segundos e os avisos de conversão de cor do
+rotulador histórico, sem alterar os IDs dos superpixels.
 
-### Como executar
+No macOS, dê dois cliques em `iniciar_rotulador_macos.command` ou execute:
+
 ```bash
-cd models
-python treinamento.py
+./iniciar_rotulador_macos.command
 ```
 
-### O que o script faz
-- Divide os dados em treino/teste (25%, estratificado; `random_state=42`).
-- Treina `RandomForestClassifier` com `class_weight='balanced'`.
-- Executa 6 experimentos:
-  1) Apenas RGB
-  2) Apenas HSV
-  3) Apenas LAB
-  4) Apenas Textura (GLCM)
-  5) Todas as Cores (RGB+HSV+LAB)
-  6) Completo (Cor + Textura)
-- Imprime `classification_report`, matriz de confusão e um resumo final com F1-Score ponderado por experimento.
+No Windows, dê dois cliques em `iniciar_rotulador_windows.bat`. Os dois
+inicializadores criam o ambiente Python na primeira execução, se necessário, e
+usam as dependências mínimas de `requirements-rotulador.txt`.
 
-### Ajustes úteis
-- Número de árvores: `N_ESTIMATORS`
-- Balanceamento: `CLASS_WEIGHT`
-- Reprodutibilidade: `RANDOM_STATE`
+Fluxo de marcação:
 
-## Treinamento do modelo de fundo (`models/treinamento_fundo_rf.py`)
-Classificador binário que identifica superpixels de fundo (1=fundo, 0=não-fundo). A GUI usa esse modelo no botão "Marcar fundo" para pintar o fundo em vermelho e, depois, ignorá-lo na classificação de neutrófilos.
+1. Clique em **Carregar imagem** e aguarde a mensagem **Pronto**.
+2. Use o botão esquerdo para marcar/desmarcar um superpixel em verde; scroll
+   aplica zoom, botão direito move e botão do meio restaura a vista.
+3. Para continuar um trabalho anterior, carregue primeiro a mesma imagem e
+   depois clique em **Abrir marcação**. O programa recusa CSVs cujos IDs não
+   correspondam à imagem, evitando associações incorretas.
+4. Clique em **Salvar marcação**. São gerados o CSV `superpixel_id,label` e uma
+   visualização PNG na mesma pasta. `Ctrl/Cmd+S` salva e `Ctrl/Cmd+Z` desfaz.
 
-### Dados de entrada
-- Por padrão, lê os CSVs de `fundo_enriquecido/` (cada arquivo com colunas por superpixel e `label` 0/1).
-- Os parâmetros SLIC devem ser consistentes com os usados na extração das features.
+Mantenha no nome do CSV o nome original da imagem. Para checar uma imagem sem
+abrir a interface:
 
-### Grupos de features suportados
-- Médias de cor (RGB/HSV/LAB)
-- Médias de cor + textura (GLCM: contrast, dissimilarity, homogeneity, correlation)
-
-### Como executar
 ```bash
-# Apenas médias RGB/HSV/LAB (padrão)
-python models/treinamento_fundo_rf.py --color-means-only --n-estimators 300 --cv-folds 5
-
-# Médias + GLCM
-python models/treinamento_fundo_rf.py --color-means-only --include-glcm --n-estimators 300 --cv-folds 5
-
-# (Opcional) especificar diretório de dados
-python models/treinamento_fundo_rf.py --data-dir caminho/para/csvs --color-means-only --include-glcm
+.venv/bin/python rotulador_lite.py --check "imagens/21 dias 20xb.tif"
 ```
 
-### Saída
-- Artefatos salvos em `models/artifacts/`:
-  - `fundo_rf.joblib`: modelo RandomForest ajustado
-  - `fundo_rf_meta.json`: metadados, incluindo a lista `feature_names` usada na inferência
+## Reproduzir a Etapa 1 — fundo
 
-### Uso na GUI
-- Ao iniciar `apps/inferencia_gui.py`, clique em "Marcar fundo". A GUI:
-  - Extrai as mesmas features por superpixel
-  - Carrega `models/artifacts/fundo_rf.joblib` e usa somente as colunas listadas em `fundo_rf_meta.json`
-  - Pinta o fundo em vermelho e, em seguida, "Analisar imagem" ignora esses superpixels
+Primeiro valide os arquivos recuperados:
 
-## Executáveis (opcional)
-Na pasta `dist/` existem versões `.exe` do rotulador para Windows (`Rotulador.exe` e `Rotulador_lite.exe`). Podem ser usados para rotular sem precisar iniciar o Python, mas o fluxo de treino permanece o mesmo (gerar CSVs e unificá-los).
-
-## Observações importantes
-- Garanta consistência dos parâmetros SLIC entre a rotulagem e qualquer recalculo posterior de superpixels.
-- Dados de histologia tendem a ser desbalanceados; o uso de `class_weight='balanced'` ajuda a mitigar isso.
-- Se necessário, normalize a coloração previamente (ver `normalizar_imagem.py`).
-
-## Referência rápida
 ```bash
-# 1) Rotular e exportar CSVs individuais
-python rotulador_gui.py
-
-# 2) Unificar CSVs em um único dataset
-python unir_datasets.py  # gera dataset_completo.csv
-
-# 3) Treinar e avaliar modelos
-cd models
-python treinamento.py
-
-# 4) Treinar e salvar melhor modelo (neutrófilos)
-cd models
-python treinamento_rf.py  # salva models/artifacts/rf_best.joblib e rf_best_meta.json
-
-# 5) Treinar o modelo de fundo (exemplos)
-cd ..
-python models/treinamento_fundo_rf.py --color-means-only --cv-folds 5
-python models/treinamento_fundo_rf.py --color-means-only --include-glcm --cv-folds 5
-
-# 6) Rodar GUI de inferência e salvar overlay
-cd ..
-python apps/inferencia_gui.py
+.venv/bin/python reconstruir_dataset_fundo.py --dry-run
 ```
+
+Reconstrua as características e os datasets completo/balanceado:
+
+```bash
+.venv/bin/python reconstruir_dataset_fundo.py --workers 8
+```
+
+Saídas:
+
+- `data/processed/fundo/dataset_fundo_completo.csv` — 92.340 linhas;
+- `data/processed/fundo/dataset_fundo_balanceado.csv` — 5.400 linhas;
+- `data/processed/fundo/por_imagem/` — 19 CSVs enriquecidos;
+- `data/processed/fundo/manifest.json` — parâmetros, hashes e contagens.
+
+Execute a validação cruzada estratificada com cinco folds usando CIELAB +
+textura:
+
+```bash
+.venv/bin/python models/treinamento_fundo_artigo.py
+```
+
+O script avalia XGBoost, Random Forest, MLP e SVM com acurácia, sensibilidade,
+especificidade e AUC. Os modelos são salvos sem sobrescrever os artefatos
+históricos:
+
+- `models/artifacts/fundo_xgb_artigo.joblib`;
+- `models/artifacts/fundo_rf_artigo.joblib`;
+- `models/artifacts/fundo_mlp_artigo.joblib`;
+- `models/artifacts/fundo_svm_artigo.joblib`.
+
+Métricas completas e comparação com o artigo ficam em
+`results/fundo_cv_resumo.json` e `results/fundo_cv_metricas_por_fold.csv`.
+
+## Rodar a aplicação
+
+```bash
+.venv/bin/python apps/inferencia_gui.py
+```
+
+Fluxo obrigatório:
+
+1. Carregar a imagem.
+2. Clicar em **Marcar fundo**. A aplicação prefere o XGBoost reconstruído com
+   CIELAB + textura.
+3. Clicar em **Analisar imagem**. Esta etapa usa o
+   `models/artifacts/rf_best_cv.joblib` existente para neutrófilos.
+4. Conferir o overlay e a aba de estatísticas.
+5. Salvar o overlay e o CSV, se necessário.
+
+O percentual informado é calculado por pixels positivos sobre pixels de tecido,
+excluindo o fundo. As contagens de superpixels também são exibidas, mas não são
+usadas como substituto da área.
+
+## Situação da Etapa 2 — neutrófilos
+
+O RF existente possui 22 entradas: médias e desvios RGB/HSV/CIELAB e quatro
+descritores GLCM. Ele carrega com `scikit-learn==1.7.1` e pode ser usado para
+inferência.
+
+Para revalidar as 12 marcações, suas imagens e os IDs SLIC sem treinar nada:
+
+```bash
+.venv/bin/python auditar_recuperacao_neutrofilos.py --validate-slic
+```
+
+O comando gera `data/processed/neutrofilos/manifest_recuperado.json`, incluindo
+hashes do RF preservado e de cada par imagem/marcação.
+
+O artigo descreve um modelo final CIELAB + textura com sete entradas. Esse
+artefato específico não foi recuperado. Enquanto faltarem as marcações não
+recuperadas:
+
+- não retreine e não substitua `rf_best_cv.joblib`;
+- não use as 12 marcações para alegar reprodução das métricas da Etapa 2;
+- mantenha os novos resultados de inferência identificados como produzidos pelo
+  RF recuperado de 22 atributos.
+
+Quando as marcações restantes forem encontradas, o dataset da Etapa 2 deverá ser
+reconstruído com o mesmo extrator compartilhado, removendo os superpixels de
+fundo antes do balanceamento e da validação cruzada.
+
+## Testes
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Os testes verificam paralelismo determinístico, cálculo de área por pixels e os
+contratos de features dos modelos de fundo e neutrófilos.
+
+## Windows
+
+O código continua compatível com Windows, mas os executáveis antigos não foram
+recuperados. A versão Python deve ser validada antes de gerar novos pacotes com
+PyInstaller; não use um novo executável para resultados científicos sem executar
+os mesmos testes e conferir os hashes dos modelos.
+
+Para gerar o rotulador portátil em uma máquina Windows com Python 3.12, execute
+`gerar_executavel_windows.bat`. O script instala o PyInstaller em um ambiente de
+compilação isolado, aplica `rotulador_windows.spec` e produz:
+
+- `dist/Rotulador_Neutrofilos/Rotulador_Neutrofilos.exe`;
+- `dist/Rotulador_Neutrofilos_Windows_Executavel.zip`.
+
+O ZIP final já recebe as nove imagens, a pasta de resultados e as instruções. A
+máquina da especialista não precisa de Python; somente a máquina que gera o
+executável precisa dele. O PyInstaller não gera binários Windows no macOS, por
+isso esse build deve ser executado e testado em Windows.

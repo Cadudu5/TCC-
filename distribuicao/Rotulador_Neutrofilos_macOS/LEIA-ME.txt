@@ -1,0 +1,13 @@
+ROTULADOR DE NEUTROFILOS - macOS
+===============================
+
+1. Extraia todo o ZIP.
+2. De dois cliques em ABRIR_ROTULADOR_MAC.command.
+3. Na primeira abertura, aguarde a instalacao das dependencias.
+4. Clique em "Carregar imagem" e selecione uma imagem .tif ou .tiff.
+
+O botao esquerdo marca/desmarca; a roda aplica zoom; o botao direito move; o
+botao do meio restaura a vista. "Abrir marcacao" retoma um CSV existente e
+"Salvar marcacao" gera o CSV e a visualizacao PNG.
+
+Em TIFF com varias paginas, o programa utiliza a primeira pagina.

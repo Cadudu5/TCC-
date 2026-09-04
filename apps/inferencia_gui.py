@@ -10,7 +10,6 @@ import numpy as np
 import joblib
 import csv
 from datetime import datetime
-import xgboost as xgb
 
 # Garante que o diretório raiz do projeto esteja no sys.path para importar 'features'
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
@@ -45,6 +44,7 @@ def _resolve_model_artifact(base_name: str, meta_name: str) -> tuple[str, str]:
 
 def _load_predictor(model_path: str):
     if model_path.lower().endswith('.json'):
+        import xgboost as xgb
         booster = xgb.Booster()
         booster.load_model(model_path)
         return booster
@@ -52,11 +52,29 @@ def _load_predictor(model_path: str):
 
 
 def _predict_binary(predictor, X_df):
-    if isinstance(predictor, xgb.Booster):
+    if type(predictor).__module__.startswith('xgboost.core') and type(predictor).__name__ == 'Booster':
+        import xgboost as xgb
         dmatrix = xgb.DMatrix(X_df, feature_names=list(X_df.columns))
         scores = predictor.predict(dmatrix)
         return (np.asarray(scores) >= 0.5).astype(np.int32)
-    return np.asarray(predictor.predict(X_df), dtype=np.int32)
+    prediction_input = X_df
+    if not hasattr(predictor, 'feature_names_in_') and hasattr(X_df, 'to_numpy'):
+        prediction_input = X_df.to_numpy()
+    return np.asarray(predictor.predict(prediction_input), dtype=np.int32)
+
+
+def compute_area_statistics(labels, background_ids, positive_ids):
+    """Retorna área positiva, área de tecido e percentual, todos por pixel."""
+    labels_array = np.asarray(labels)
+    background_array = np.fromiter(background_ids or (), dtype=np.int32)
+    positive_array = np.fromiter(positive_ids or (), dtype=np.int32)
+    background_mask = np.isin(labels_array, background_array)
+    tissue_mask = ~background_mask
+    positive_mask = np.isin(labels_array, positive_array) & tissue_mask
+    positive_pixels = int(np.count_nonzero(positive_mask))
+    tissue_pixels = int(np.count_nonzero(tissue_mask))
+    percentage = (100.0 * positive_pixels / tissue_pixels) if tissue_pixels else 0.0
+    return positive_pixels, tissue_pixels, percentage
 
 
 class InferenciaGUI:
@@ -85,8 +103,8 @@ class InferenciaGUI:
         self._cache = {}
         self._feature_workers = self._resolve_feature_workers()
 
-        # Nome e caminhos do modelo principal (XGBoost)
-        self.model_name = 'XGBoost'
+        # O artigo selecionou Random Forest para a classificação de neutrófilos.
+        self.model_name = 'Random Forest'
         self.model_paths = self._load_primary_model()
 
         # UI: seleção de imagem, parâmetros e ações
@@ -143,6 +161,8 @@ class InferenciaGUI:
         self.stats_pos_var = tk.StringVar(value="0")
         self.stats_neg_var = tk.StringVar(value="0")
         self.stats_bg_var = tk.StringVar(value="0")
+        self.stats_pos_pixels_var = tk.StringVar(value="0")
+        self.stats_tissue_pixels_var = tk.StringVar(value="0")
         self.stats_pct_var = tk.StringVar(value="0.00%")
         self.stats_note_var = tk.StringVar(value="")
 
@@ -152,8 +172,12 @@ class InferenciaGUI:
         tk.Label(stats_inner, textvariable=self.stats_neg_var).grid(row=1, column=1, sticky='w', pady=2)
         tk.Label(stats_inner, text="Fundo:").grid(row=2, column=0, sticky='w', padx=(0,8), pady=2)
         tk.Label(stats_inner, textvariable=self.stats_bg_var).grid(row=2, column=1, sticky='w', pady=2)
-        tk.Label(stats_inner, text="% Positivo (excluindo fundo):").grid(row=3, column=0, sticky='w', padx=(0,8), pady=2)
-        tk.Label(stats_inner, textvariable=self.stats_pct_var).grid(row=3, column=1, sticky='w', pady=2)
+        tk.Label(stats_inner, text="Área positiva (pixels):").grid(row=3, column=0, sticky='w', padx=(0,8), pady=2)
+        tk.Label(stats_inner, textvariable=self.stats_pos_pixels_var).grid(row=3, column=1, sticky='w', pady=2)
+        tk.Label(stats_inner, text="Área tecidual (pixels):").grid(row=4, column=0, sticky='w', padx=(0,8), pady=2)
+        tk.Label(stats_inner, textvariable=self.stats_tissue_pixels_var).grid(row=4, column=1, sticky='w', pady=2)
+        tk.Label(stats_inner, text="% da área positiva (excluindo fundo):").grid(row=5, column=0, sticky='w', padx=(0,8), pady=2)
+        tk.Label(stats_inner, textvariable=self.stats_pct_var).grid(row=5, column=1, sticky='w', pady=2)
 
         # Observações e ação
         tk.Label(self.stats_frame, textvariable=self.stats_note_var, fg="gray").pack(side=tk.TOP, fill=tk.X, padx=8, pady=(0,8))
@@ -175,11 +199,11 @@ class InferenciaGUI:
 
     def _load_primary_model(self) -> tuple[str, str] | None:
         artifacts_dir = _artifacts_dir()
-        model_path, meta_path = _resolve_model_artifact('xgb_best_cv', 'xgb_best_cv_meta.json')
+        model_path, meta_path = _resolve_model_artifact('rf_best_cv', 'rf_best_cv_meta.json')
         if not (os.path.exists(model_path) and os.path.exists(meta_path)):
             messagebox.showerror(
                 "Erro",
-                f"Modelo XGBoost não encontrado em\n{artifacts_dir}\nTreine e salve o modelo antes de usar a ferramenta.")
+                f"Modelo Random Forest não encontrado em\n{artifacts_dir}\nTreine e salve o modelo antes de usar a ferramenta.")
             return None
         return model_path, meta_path
 
@@ -296,7 +320,9 @@ class InferenciaGUI:
 
     def _update_analyze_enabled(self):
         has_image = (self.image_rgb is not None)
-        enabled_analyze = has_image and self.model_paths is not None
+        key = self._get_cache_key(int(self.n_segments_var.get())) if has_image else None
+        has_current_background = self._bg_sp_ids is not None and self._bg_cache_key == key
+        enabled_analyze = has_image and self.model_paths is not None and has_current_background
         self.btn_analyze.configure(state=(tk.NORMAL if enabled_analyze else tk.DISABLED))
         # Remover fundo depende apenas de haver imagem carregada
         self.btn_remove_bg.configure(state=(tk.NORMAL if has_image else tk.DISABLED))
@@ -304,12 +330,18 @@ class InferenciaGUI:
         # Aba Estatísticas sempre visível; apenas valores refletem estado
 
     def _get_bg_model_paths(self):
-        model_path, meta_path = _resolve_model_artifact('fundo_xgb', 'fundo_xgb_meta.json')
-        if not (os.path.exists(model_path) and os.path.exists(meta_path)):
-            raise FileNotFoundError(
-                f"Modelo de fundo não encontrado. Esperado em:\n{model_path}\n{meta_path}\nTreine com models/treinamento_fundo_rf.py."
-            )
-        return model_path, meta_path
+        candidates = (
+            ('fundo_xgb_artigo', 'fundo_xgb_artigo_meta.json'),
+            ('fundo_xgb', 'fundo_xgb_meta.json'),
+        )
+        for base_name, meta_name in candidates:
+            model_path, meta_path = _resolve_model_artifact(base_name, meta_name)
+            if os.path.exists(model_path) and os.path.exists(meta_path):
+                return model_path, meta_path
+        raise FileNotFoundError(
+            "Modelo XGBoost de fundo não encontrado. Execute:\n"
+            "python models/treinamento_fundo_artigo.py"
+        )
 
     def on_remove_background(self):
         if self.image_rgb is None:
@@ -372,6 +404,10 @@ class InferenciaGUI:
                 self.background_mask = mask_bg
                 self._bg_cache_key = self._get_cache_key(n_segments)
                 self._bg_sp_ids = bg_ids
+                self._pred_cache_key = None
+                self._pred_bg_cache_key = None
+                self._pred_pos_sp_ids = None
+                self._pred_neg_sp_ids = None
                 self.overlay_image = overlay
                 # Atualiza estatísticas (fundo pode ter mudado)
                 self._update_stats_view(n_segments=n_segments)
@@ -398,12 +434,15 @@ class InferenciaGUI:
             messagebox.showwarning("Aviso", "Carregue uma imagem primeiro.")
             return
         if self.model_paths is None:
-            messagebox.showwarning("Aviso", "Modelo XGBoost não disponível para análise.")
+            messagebox.showwarning("Aviso", "Modelo Random Forest não disponível para análise.")
             return
         try:
             n_segments = int(self.n_segments_var.get())
         except Exception:
             messagebox.showerror("Erro", "Valor de n_segments inválido.")
+            return
+        if self._bg_sp_ids is None or self._bg_cache_key != self._get_cache_key(n_segments):
+            messagebox.showwarning("Aviso", "Execute 'Marcar fundo' antes de analisar a imagem.")
             return
 
         self._set_status("Iniciando análise...")
@@ -423,7 +462,7 @@ class InferenciaGUI:
 
             self._set_status("Carregando modelo...")
             if self.model_paths is None:
-                raise RuntimeError("Modelo XGBoost não está disponível.")
+                raise RuntimeError("Modelo Random Forest não está disponível.")
             model_path, meta_path = self.model_paths
             model = _load_predictor(model_path)
             with open(meta_path, 'r', encoding='utf-8') as f:
@@ -541,21 +580,24 @@ class InferenciaGUI:
 
     def _compute_stats(self, n_segments: int | None):
         if self.image_rgb is None or n_segments is None:
-            return 0, 0, 0, 0.0, ""
+            return 0, 0, 0, 0, 0, 0.0, ""
         key = self._get_cache_key(n_segments)
         bg_count = 0
         if self._bg_sp_ids is not None and self._bg_cache_key == key:
             bg_count = len(self._bg_sp_ids)
         if not (self._pred_cache_key == key and self._pred_pos_sp_ids is not None and self._pred_neg_sp_ids is not None):
-            return 0, 0, bg_count, 0.0, ""
+            return 0, 0, bg_count, 0, 0, 0.0, ""
         note = ""
         if self._pred_bg_cache_key != self._bg_cache_key:
             note = "Fundo alterado após a análise. Reanalise para atualizar as estatísticas."
         pos_count = len(self._pred_pos_sp_ids)
         neg_count = len(self._pred_neg_sp_ids)
-        denom = pos_count + neg_count
-        pct_pos = (100.0 * pos_count / denom) if denom > 0 else 0.0
-        return pos_count, neg_count, bg_count, pct_pos, note
+        labels, _ = self._cache[key]
+        background_ids = self._bg_sp_ids if self._bg_cache_key == key else set()
+        positive_pixels, tissue_pixels, pct_pos = compute_area_statistics(
+            labels, background_ids, self._pred_pos_sp_ids
+        )
+        return pos_count, neg_count, bg_count, positive_pixels, tissue_pixels, pct_pos, note
 
     def _update_stats_view(self, n_segments: int | None):
         try:
@@ -567,13 +609,17 @@ class InferenciaGUI:
             self.stats_pos_var.set("0")
             self.stats_neg_var.set("0")
             self.stats_bg_var.set("0")
+            self.stats_pos_pixels_var.set("0")
+            self.stats_tissue_pixels_var.set("0")
             self.stats_pct_var.set("0.00%")
             self.stats_note_var.set("")
             return
-        pos, neg, bg, pct, note = self._compute_stats(n_segments)
+        pos, neg, bg, pos_pixels, tissue_pixels, pct, note = self._compute_stats(n_segments)
         self.stats_pos_var.set(str(pos))
         self.stats_neg_var.set(str(neg))
         self.stats_bg_var.set(str(bg))
+        self.stats_pos_pixels_var.set(str(pos_pixels))
+        self.stats_tissue_pixels_var.set(str(tissue_pixels))
         self.stats_pct_var.set(f"{pct:.2f}%")
         self.stats_note_var.set(note)
 
@@ -586,7 +632,7 @@ class InferenciaGUI:
         except Exception:
             messagebox.showerror("Erro", "Valor de n_segments inválido.")
             return
-        pos, neg, bg, pct, note = self._compute_stats(n_segments)
+        pos, neg, bg, pos_pixels, tissue_pixels, pct, note = self._compute_stats(n_segments)
         initial_dir = os.path.dirname(self.image_path) if self.image_path else os.getcwd()
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         default_name = f"estatisticas_{ts}.csv"
@@ -602,8 +648,16 @@ class InferenciaGUI:
         try:
             with open(out_path, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                writer.writerow(["positivos_neutrofilo", "negativos_nao_neutrofilo", "fundo", "percentual_positivo_excluindo_fundo", "observacao"])
-                writer.writerow([pos, neg, bg, f"{pct:.2f}", note])
+                writer.writerow([
+                    "superpixels_positivos_neutrofilo",
+                    "superpixels_negativos_nao_neutrofilo",
+                    "superpixels_fundo",
+                    "area_positiva_pixels",
+                    "area_tecidual_pixels",
+                    "percentual_area_positiva_excluindo_fundo",
+                    "observacao",
+                ])
+                writer.writerow([pos, neg, bg, pos_pixels, tissue_pixels, f"{pct:.2f}", note])
         except Exception as e:
             messagebox.showerror("Erro ao salvar CSV", str(e))
             return

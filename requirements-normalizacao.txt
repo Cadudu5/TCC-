@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# Usado apenas por normalizar_imagem.py. O staintools também requer o módulo
+# nativo "spams", que não possui instalação simples em todos os Macs ARM.
+opencv-python==4.12.0.88
+staintools==2.1.2

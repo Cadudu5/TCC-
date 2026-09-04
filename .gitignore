@@ -1,5 +1,7 @@
 # Ambiente virtual
 venv/
+.venv/
+.venv-rotulador-*/
 env/
 .env/
 
@@ -25,6 +27,7 @@ dist/
 *.egg-info/
 *.egg
 *.spec
+!rotulador_windows.spec
 *.manifest
 *.toc
 

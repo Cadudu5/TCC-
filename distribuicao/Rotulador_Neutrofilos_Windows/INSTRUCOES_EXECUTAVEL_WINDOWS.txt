@@ -1,0 +1,40 @@
+ROTULADOR DE NEUTROFILOS - EXECUTAVEL WINDOWS
+=============================================
+
+Este pacote nao exige instalacao do Python.
+
+1. Clique com o botao direito no arquivo ZIP e escolha "Extrair Tudo".
+2. Abra a pasta Rotulador_Neutrofilos.
+3. De dois cliques em Rotulador_Neutrofilos.exe.
+   A primeira abertura pode levar cerca de 30 segundos enquanto o programa
+   prepara o cache de fontes. As aberturas seguintes sao bem mais rapidas.
+4. Se o Windows Defender exibir uma confirmacao, confira o nome do arquivo e
+   escolha executar somente se o pacote foi recebido diretamente do
+   responsavel pelo projeto.
+5. No programa, clique em "Carregar imagem" e abra uma das nove imagens da
+   pasta IMAGENS_PARA_ROTULAR.
+6. Marque em verde os superpixels correspondentes a neutrofilos.
+7. Clique em "Salvar marcacao" e escolha a pasta MARCACOES_CONCLUIDAS.
+8. Repita para todas as nove imagens.
+
+Controles
+---------
+- Botao esquerdo: marcar ou desmarcar.
+- Roda do mouse: zoom.
+- Botao direito pressionado: mover a imagem.
+- Botao do meio: restaurar a visualizacao.
+- Ctrl+Z: desfazer.
+- Ctrl+S: salvar.
+
+Ao terminar
+-----------
+Confirme que a pasta MARCACOES_CONCLUIDAS possui nove arquivos CSV e nove
+visualizacoes PNG. Compacte essa pasta e devolva-a ao responsavel pelo projeto.
+
+Importante
+----------
+- Nao mova o executavel para fora da pasta: a subpasta _internal faz parte do
+  programa.
+- Nao renomeie ou edite as imagens.
+- Nao altere os CSVs no Excel.
+- TIFF e TIF sao aceitos. Em TIFF com varias paginas, e usada a primeira.

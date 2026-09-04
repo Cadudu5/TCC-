@@ -1,0 +1,5 @@
+Rotulador de neutrofilos - pacote 2026-09-04
+Python recomendado: 3.12
+SLIC: n_segments=5000, compactness=10, sigma=3, start_label=1
+Formato de saida: superpixel_id,label
+Formatos de entrada: .tif, .tiff, .png, .jpg, .jpeg

@@ -1,7 +1,11 @@
-pandas
-scikit-image
-matplotlib
-numpy
-pandas
-tqdm
-staintools
+# Ambiente principal reproduzível (Python 3.12, macOS/Windows)
+numpy==2.2.6
+pandas==2.3.1
+scipy==1.16.1
+scikit-image==0.25.2
+scikit-learn==1.7.1
+xgboost==3.0.5
+joblib==1.5.1
+Pillow==11.3.0
+matplotlib==3.10.3
+tqdm==4.67.1

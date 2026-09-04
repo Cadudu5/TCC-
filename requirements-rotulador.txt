@@ -1,0 +1,7 @@
+# Dependências mínimas da interface de marcação (Python 3.12).
+numpy==2.2.6
+pandas==2.3.1
+scipy==1.16.1
+scikit-image==0.25.2
+Pillow==11.3.0
+matplotlib==3.10.3

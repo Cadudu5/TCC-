@@ -1,0 +1,47 @@
+ROTULADOR DE NEUTROFILOS - WINDOWS
+=================================
+
+Requisitos
+----------
+- Windows 10 ou 11, 64 bits.
+- Python 3.12 instalado pelo site oficial:
+  https://www.python.org/downloads/windows/
+- Conexao com a internet durante a primeira instalacao.
+
+Instalacao
+----------
+1. Extraia todo o arquivo ZIP para uma pasta comum. Nao execute de dentro do ZIP.
+2. Abra a pasta extraida.
+3. De dois cliques em INSTALAR_WINDOWS.bat.
+4. Aguarde a mensagem "Instalacao concluida com sucesso".
+
+Uso
+---
+1. De dois cliques em ABRIR_ROTULADOR_WINDOWS.bat.
+2. Clique em "Carregar imagem".
+3. Abra uma das nove imagens da pasta IMAGENS_PARA_ROTULAR. Imagens .tif e
+   .tiff sao aceitas; PNG e JPEG tambem sao suportados.
+4. Clique com o botao esquerdo nos superpixels que representam neutrofilos.
+   As regioes positivas ficam verdes. Clique novamente para desmarcar.
+5. Use a roda do mouse para zoom, botao direito para mover e botao do meio
+   para restaurar a visualizacao. O botao "Desfazer" corrige o ultimo clique.
+6. Clique em "Salvar marcacao" e escolha a pasta MARCACOES_CONCLUIDAS. O
+   programa salva um CSV e uma visualizacao PNG.
+7. Repita o processo ate concluir as nove imagens.
+
+Para continuar uma marcacao
+---------------------------
+1. Carregue primeiro a mesma imagem original.
+2. Clique em "Abrir marcacao" e selecione o CSV salvo anteriormente.
+3. O programa valida os IDs e recusa uma marcacao que pertenca a outra imagem.
+
+Observacoes importantes
+-----------------------
+- Nao renomeie a imagem nem o CSV durante o trabalho.
+- Em TIFF com varias paginas, o programa utiliza a primeira pagina.
+- Nao apague nem mova os arquivos internos desta pasta.
+- A pasta .venv-rotulador, criada pelo instalador, pode ocupar algumas centenas
+  de megabytes e precisa permanecer junto ao programa.
+- O CSV contem somente as colunas superpixel_id e label. Envie de volta tanto
+  o CSV quanto a visualizacao PNG de cada uma das nove imagens.
+- Ao terminar, compacte a pasta MARCACOES_CONCLUIDAS e envie-a ao responsavel.
